@@ -19,8 +19,9 @@ export interface IProblem extends Document {
 
 const TestSchema = new mongoose.Schema<ITestCase>(
   {
-    input: { required: [true, "Input is required"], trim: true },
+    input: { type: String, required: [true, "Input is required"], trim: true },
     output: {
+      type: String,
       required: [true, "Output is required"],
       trim: true,
     },
@@ -57,7 +58,18 @@ const ProblemSchema = new mongoose.Schema<IProblem>(
     editorial: { type: String, trim: true },
     testcases: [TestSchema],
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    toJSON: {
+      transform: (_doc, record: any) => {
+        delete record.__v;
+        // normalize Mongo _id to id (string)
+        record.id = record._id ? String(record._id) : record._id;
+        delete record._id;
+        return record;
+      },
+    },
+  },
 );
 
 ProblemSchema.index({ title: 1 }, { unique: true });
