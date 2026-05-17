@@ -60,9 +60,7 @@ export class SubmissionService implements ISubmissionService {
       throw new BadRequestError("Failed to add submission to the queue");
     }
 
-    logger.info(
-      `Submission ${submission._id} created and added to the queue with job ID ${jobId}`,
-    );
+    logger.info(`Submission ${submission._id} created and added to the queue with job ID ${jobId}`);
 
     return submission;
   }
