@@ -2,58 +2,67 @@ import { InternalServerError } from "../errors/app.error";
 import { commands } from "./commands.util";
 import { createNewDockerContainer } from "./createContainer.util";
 
-
 const allowListedLanguage = ["python", "cpp"];
 
 export interface RunCodeOptions {
-    code: string,
-    language: "python" | "cpp",
-    timeout: number,
-    imageName: string,
+  code: string;
+  language: "python" | "cpp";
+  timeout: number;
+  imageName: string;
+  input: string;
 }
 
 export async function runCode(options: RunCodeOptions) {
+  const { code, language, timeout, imageName, input } = options;
 
-    const { code, language, timeout, imageName } = options;
+  if (!allowListedLanguage.includes(language)) {
+    throw new InternalServerError(`Invalid language: ${language}`);
+  }
 
-    if(!allowListedLanguage.includes(language)) {
-        throw new InternalServerError(`Invalid language: ${language}`);
-    }
+  const container = await createNewDockerContainer({
+    imageName: imageName,
+    cmdExecutable: commands[language](code, input),
+    memoryLimit: 1024 * 1024 * 1024, // 1GB
+  });
 
-    const container = await createNewDockerContainer({
-        imageName: imageName,
-        cmdExecutable: commands[language](code),
-        memoryLimit: 1024 * 1024 * 1024, // 1GB
-    });
+  const timeLimitExceededTimeout = setTimeout(() => {
+    console.log("Time limit exceeded");
+    container?.kill();
+  }, timeout);
 
-    const timeLimitExceededTimeout = setTimeout(() => {
-        console.log("Time limit exceeded");
-        container?.kill();
-    }, timeout);
+  console.log("Container created successfully", container?.id);
 
-    console.log("Container created successfully", container?.id);
+  await container?.start();
 
-    await container?.start();
+  const status = await container?.wait();
 
-    const status = await container?.wait();
+  console.log("Container status", status);
 
-    console.log("Container status", status);
+  const logs = await container?.logs({
+    stdout: true,
+    stderr: true,
+  });
 
-    const logs = await container?.logs({
-        stdout: true,
-        stderr: true
-    });
+  const containerLogs = processLogs(logs);
 
-    console.log("Container logs", logs?.toString().trim());
+  console.log("Container logs", containerLogs);
 
-    await container?.remove();
+  await container?.remove();
 
-    clearTimeout(timeLimitExceededTimeout);
+  clearTimeout(timeLimitExceededTimeout);
 
-    if(status.StatusCode == 0) {
-        // success
-        console.log("Container exited successfully");
-    } else {
-        console.log("Container exited with error");
-    }
+  if (status.StatusCode == 0) {
+    // success
+    console.log("Container exited successfully");
+  } else {
+    console.log("Container exited with error");
+  }
+}
+
+function processLogs(logs: Buffer | undefined) {
+  return logs
+    ?.toString("utf8")
+    .replace(/\x00/g, "") // Remove null bytes
+    .replace(/[\x00-\x09\x0B-\x1F\x7F-\x9F]/g, "") // Remove control characters except \n (0x0A)
+    .trim();
 }
