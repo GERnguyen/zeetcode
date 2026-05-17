@@ -10,7 +10,7 @@ import logger from "./config/logger.config";
 import { attachCorrelationIdMiddleware } from "./middlewares/correlation.middleware";
 import { startWorkers } from "./workers/evaluation.worker";
 import { pullAllImages } from "./utils/containers/pullImage.util";
-import { runPythonCode } from './utils/containers/pythonRunner.util';
+import { runCode } from "./utils/containers/codeRunner.util";
 const app = express();
 
 app.use(express.json());
@@ -42,16 +42,23 @@ app.listen(serverConfig.PORT, async () => {
   await testPyThonCode();
 });
 
-
 async function testPyThonCode() {
-    const pythonCode = `
+  const pythonCode = `
 
-for i in range(10):
+import time
+i = 0
+while True:
+    i += 1
     print(i)
+    time.sleep(1)
 
 print("Bye")
     `;
-    // 1. Take the python code and dump in a file and run the python file in the container
-    
-    await runPythonCode(pythonCode);
+  // 1. Take the python code and dump in a file and run the python file in the container
+
+  await runCode({
+    code: pythonCode,
+    language: "python",
+    timeout: 3000, // 10 seconds
+  });
 }
