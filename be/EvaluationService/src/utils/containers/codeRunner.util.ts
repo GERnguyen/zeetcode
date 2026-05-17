@@ -1,4 +1,3 @@
-import { PYTHON_IMAGE } from "../constants";
 import { InternalServerError } from "../errors/app.error";
 import { commands } from "./commands.util";
 import { createNewDockerContainer } from "./createContainer.util";
@@ -8,20 +7,21 @@ const allowListedLanguage = ["python", "cpp"];
 
 export interface RunCodeOptions {
     code: string,
-    language: "python",
-    timeout: number
+    language: "python" | "cpp",
+    timeout: number,
+    imageName: string,
 }
 
 export async function runCode(options: RunCodeOptions) {
 
-    const { code, language, timeout } = options;
+    const { code, language, timeout, imageName } = options;
 
     if(!allowListedLanguage.includes(language)) {
         throw new InternalServerError(`Invalid language: ${language}`);
     }
 
     const container = await createNewDockerContainer({
-        imageName: PYTHON_IMAGE,
+        imageName: imageName,
         cmdExecutable: commands[language](code),
         memoryLimit: 1024 * 1024 * 1024, // 1GB
     });
@@ -44,7 +44,7 @@ export async function runCode(options: RunCodeOptions) {
         stderr: true
     });
 
-    console.log("Container logs", logs?.toString());
+    console.log("Container logs", logs?.toString().trim());
 
     await container?.remove();
 
