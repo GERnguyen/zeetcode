@@ -25,8 +25,11 @@ export async function runCode(options: RunCodeOptions) {
     memoryLimit: 1024 * 1024 * 1024, // 1GB
   });
 
+  let isTimeLimitExceeded = false;
+
   const timeLimitExceededTimeout = setTimeout(() => {
     console.log("Time limit exceeded");
+    isTimeLimitExceeded = true;
     container?.kill();
   }, timeout);
 
@@ -36,7 +39,13 @@ export async function runCode(options: RunCodeOptions) {
 
   const status = await container?.wait();
 
-  console.log("Container status", status);
+  if (isTimeLimitExceeded) {
+    await container?.remove();
+    return {
+      status: "Time Limit Exceeded",
+      output: "Time Limit Exceeded",
+    };
+  }
 
   const logs = await container?.logs({
     stdout: true,
@@ -45,7 +54,6 @@ export async function runCode(options: RunCodeOptions) {
 
   const containerLogs = processLogs(logs);
 
-  console.log("Container logs", containerLogs);
 
   await container?.remove();
 
@@ -53,9 +61,16 @@ export async function runCode(options: RunCodeOptions) {
 
   if (status.StatusCode == 0) {
     // success
-    console.log("Container exited successfully");
+    return {
+      status: "success",
+      output: containerLogs,
+    }
   } else {
     console.log("Container exited with error");
+    return {
+      status: "failed",
+      output: containerLogs,
+    }
   }
 }
 

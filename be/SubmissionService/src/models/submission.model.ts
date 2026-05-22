@@ -2,12 +2,7 @@ import mongoose, { Document } from "mongoose";
 
 export enum SubmissionStatus {
   PENDING = "pending",
-  ACCEPTED = "accepted",
-  WRONG_ANSWER = "wrong_answer",
-  COMPILING = "compiling",
-  TIME_LIMIT_EXCEEDED = "time_limit_exceeded",
-  RUNTIME_ERROR = "runtime_error",
-  COMPILE_ERROR = "compile_error",
+  COMPLETED = "completed",
 }
 
 export enum SubmissionLanguage {
@@ -15,11 +10,17 @@ export enum SubmissionLanguage {
   CPP = "cpp",
 }
 
+export interface ISubmissionData {
+  testCaseId: string;
+  status: string;
+}
+
 export interface ISubmission extends Document {
   problemId: string;
   code: string;
   language: SubmissionLanguage;
   status: SubmissionStatus;
+  submissionData: ISubmissionData;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +39,11 @@ const submissionSchema = new mongoose.Schema<ISubmission>(
       required: true,
       enum: Object.values(SubmissionStatus),
       default: SubmissionStatus.PENDING,
+    },
+    submissionData: {
+      type: Object,
+      required: [true, "Submission data is required"],
+      default: {},
     },
   },
   {

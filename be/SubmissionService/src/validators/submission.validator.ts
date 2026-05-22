@@ -11,6 +11,7 @@ export const createSubmissionSchema = z.object({
   language: z.nativeEnum(SubmissionLanguage, {
     errorMap: () => ({ message: "Language must be either 'cpp' or 'python'" }),
   }),
+  submissionData: z.any(),
 });
 
 // Schema for updating submission status

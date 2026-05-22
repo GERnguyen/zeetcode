@@ -102,16 +102,18 @@ export class SubmissionController {
     next: NextFunction,
   ) => {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, submissionData } = req.body;
 
     logger.info("Updating submission status", {
       submissionId: id,
       status,
+      submissionData,
     });
 
     const submission = await this.submissionService.updateSubmissionStatus(
       id,
       status,
+      submissionData
     );
 
     logger.info("Submission status updated successfully", {
