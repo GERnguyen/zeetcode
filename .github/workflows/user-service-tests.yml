@@ -2,13 +2,13 @@ name: UserService CI - tests
 
 on:
   push:
-    branches: [ 'dev', 'main' ]
+    branches: ["dev", "main"]
     paths:
-      - 'be/UserService/**'
+      - "be/UserService/**"
   pull_request:
-    branches: [ 'dev', 'main' ]
+    branches: ["dev", "main"]
     paths:
-      - 'be/UserService/**'
+      - "be/UserService/**"
 
 jobs:
   test:
@@ -21,8 +21,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "20.19"
+          cache: "npm"
           cache-dependency-path: be/UserService/package-lock.json
 
       - name: Install dependencies
