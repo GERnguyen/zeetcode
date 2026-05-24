@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Service Auth Update Report</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.5;
+        margin: 24px;
+        color: #1a1a1a;
+      }
+      h1,
+      h2 {
+        margin: 0 0 8px;
+      }
+      h2 {
+        margin-top: 20px;
+      }
+      code {
+        background: #f5f5f5;
+        padding: 2px 4px;
+        border-radius: 4px;
+      }
+      ul {
+        margin: 8px 0 0 20px;
+      }
+      .note {
+        background: #fdf3d7;
+        border: 1px solid #f2d48f;
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>User Service Auth Update</h1>
+    <p>
+      This report summarizes the service logic, authentication middleware, and
+      email-confirmation flows added to the UserService.
+    </p>
+
+    <h2>What Was Added</h2>
+    <ul>
+      <li>
+        JWT access and refresh token handling with refresh token rotation and
+        revocation.
+      </li>
+      <li>
+        Role and ownership guards for APIs: user-only, self-or-admin, and
+        admin-only checks.
+      </li>
+      <li>
+        Email confirmation links for signup and sensitive changes, plus password
+        reset by email link.
+      </li>
+      <li>
+        Controllers wired to the service functions so routes can be added next.
+      </li>
+    </ul>
+
+    <h2>Key Files</h2>
+    <ul>
+      <li><code>src/services/user.service.ts</code>: core auth logic</li>
+      <li>
+        <code>src/middlewares/auth.middleware.ts</code>: access/refresh auth
+      </li>
+      <li><code>src/controllers/user.controller.ts</code>: controllers</li>
+      <li>
+        <code>src/services/email.service.ts</code>: nodemailer Gmail sender
+      </li>
+      <li><code>prisma/schema.prisma</code>: refresh/email token models</li>
+      <li><code>src/config/index.ts</code>: new auth + mail config</li>
+    </ul>
+
+    <h2>Authentication Flow</h2>
+    <ul>
+      <li>
+        <strong>Access token</strong> is a short-lived JWT signed with
+        <code>JWT_ACCESS_SECRET</code>.
+      </li>
+      <li>
+        <strong>Refresh token</strong> is a long-lived JWT signed with
+        <code>JWT_REFRESH_SECRET</code> and stored as a hash in the
+        <code>RefreshToken</code> table.
+      </li>
+      <li>
+        Refresh token rotation revokes the old token and issues a new pair.
+      </li>
+      <li>
+        Middleware functions: <code>authenticateAccessToken</code>,
+        <code>authenticateRefreshToken</code>, <code>requireAdmin</code>, and
+        <code>requireSelfOrAdmin</code>.
+      </li>
+    </ul>
+
+    <h2>Email Confirmation Flow</h2>
+    <ul>
+      <li>
+        Email links use a one-time token stored in <code>EmailToken</code> with
+        an expiration time.
+      </li>
+      <li><strong>Signup</strong>: sends confirmation link.</li>
+      <li>
+        <strong>Change password</strong>: sends confirmation link with a hashed
+        new password stored in the token payload.
+      </li>
+      <li>
+        <strong>Password reset</strong>: sends reset link; the token is consumed
+        when the user sets a new password.
+      </li>
+    </ul>
+
+    <h2>New Environment Variables</h2>
+    <ul>
+      <li><code>JWT_ACCESS_SECRET</code></li>
+      <li><code>JWT_REFRESH_SECRET</code></li>
+      <li><code>JWT_ACCESS_EXPIRES_IN</code> (default 15m)</li>
+      <li><code>JWT_REFRESH_EXPIRES_IN</code> (default 7d)</li>
+      <li><code>EMAIL_TOKEN_EXPIRES_MINUTES</code> (default 30)</li>
+      <li>
+        <code>MAIL_USER</code> and <code>MAIL_PASS</code> (Gmail app password)
+      </li>
+      <li><code>MAIL_FROM</code> (optional; defaults to MAIL_USER)</li>
+      <li><code>FRONTEND_URL</code> (used for link generation)</li>
+    </ul>
+
+    <div class="note">
+      <strong>Required local steps:</strong>
+      <ul>
+        <li>
+          Run <code>prisma migrate dev</code> and <code>prisma generate</code>.
+        </li>
+        <li>Run <code>npm install</code> to add nodemailer dependencies.</li>
+        <li>Set the new environment variables before running the service.</li>
+      </ul>
+    </div>
+  </body>
+</html>

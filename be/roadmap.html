@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kế Hoạch Thực Chiến 1 Tuần - Zeetcode Backend v2</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #111827;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border: #1f2937;
+            --code-bg: #1e293b;
+            --sidebar-width: 280px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            display: flex;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: #0d1117;
+            border-right: 1px solid var(--border);
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            padding: 25px 15px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .sidebar-brand {
+            font-size: 16pt;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-left: 10px;
+        }
+
+        .sidebar-brand span {
+            color: var(--primary);
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-item {
+            margin-bottom: 8px;
+        }
+
+        .sidebar-link {
+            display: block;
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 10pt;
+            transition: all 0.2s;
+        }
+
+        .sidebar-link:hover, .sidebar-link.active {
+            background-color: var(--border);
+            color: white;
+            font-weight: 600;
+        }
+
+        .sidebar-link.active {
+            border-left: 4px solid var(--primary);
+            background-color: #1e293b;
+        }
+
+        /* Main Content Container */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            width: calc(100% - var(--sidebar-width));
+            padding: 40px;
+            max-width: 1200px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 1px solid var(--border);
+            padding: 35px;
+            border-radius: 12px;
+            margin-bottom: 35px;
+        }
+
+        header h1 {
+            font-size: 22pt;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 11pt;
+        }
+
+        /* Meta Grid Info */
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 35px;
+        }
+
+        .meta-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .meta-card h3 {
+            font-size: 9pt;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            letter-spacing: 0.5px;
+        }
+
+        .meta-card p {
+            font-size: 12pt;
+            font-weight: bold;
+            color: white;
+        }
+
+        /* Day Container Styling */
+        .day-section {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 35px;
+            margin-bottom: 40px;
+            scroll-margin-top: 40px;
+        }
+
+        .day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+
+        .day-title {
+            font-size: 16pt;
+            color: white;
+            font-weight: 600;
+        }
+
+        .day-badge {
+            background-color: #1e3a8a;
+            color: #93c5fd;
+            font-size: 9pt;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .sub-heading {
+            font-size: 11pt;
+            text-transform: uppercase;
+            color: var(--primary);
+            margin: 25px 0 12px 0;
+            letter-spacing: 0.5px;
+            font-weight: bold;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 10px;
+            color: var(--text-main);
+            font-size: 10.5pt;
+        }
+
+        li strong {
+            color: white;
+        }
+
+        /* Code Block Styling */
+        code {
+            font-family: 'Fira Code', 'Consolas', monospace;
+            background-color: #1e293b;
+            color: #f43f5e;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 9.5pt;
+        }
+
+        pre {
+            background-color: var(--code-bg);
+            border: 1px solid #334155;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 9.5pt;
+            color: #e2e8f0;
+            line-height: 1.5;
+        }
+
+        /* Informative Callout Boxes */
+        .callout-box {
+            background-color: #0f172a;
+            border-left: 4px solid var(--primary);
+            padding: 18px;
+            border-radius: 6px;
+            margin: 20px 0;
+            font-size: 10pt;
+        }
+
+        .callout-box.social-architecture {
+            border-left-color: var(--success);
+            background-color: #064e3b;
+            color: #ecfdf5;
+        }
+
+        .callout-box.social-architecture strong {
+            color: #a7f3d0;
+        }
+
+        .callout-box strong {
+            color: white;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 25px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 9.5pt;
+        }
+
+        /* Flow Diagram Representation (Pure CSS structural blocks) */
+        .flow-diagram {
+            background: #0d1117;
+            border: 1px dashed #30363d;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 9pt;
+            color: #8b949e;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR NAVIGATION -->
+    <nav class="sidebar">
+        <div class="sidebar-brand">Zeetcode<span>.IO</span></div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item"><a href="#overview" class="sidebar-link active">Tổng Quan Lộ Trình</a></li>
+            <li class="sidebar-item"><a href="#day1" class="sidebar-link">Ngày 1: SQL UserService</a></li>
+            <li class="sidebar-item"><a href="#day2" class="sidebar-link">Ngày 2: Thống Kê & Quyền Riêng Tư</a></li>
+            <li class="sidebar-item"><a href="#day3" class="sidebar-link">Ngày 3: Editorial Module</a></li>
+            <li class="sidebar-item"><a href="#day4" class="sidebar-link">Ngày 4: Sơ Đồ Lộ Trình (Tree)</a></li>
+            <li class="sidebar-item"><a href="#day5" class="sidebar-link">Ngày 5: Kiến Trúc Contest Core</a></li>
+            <li class="sidebar-item"><a href="#day6" class="sidebar-link">Ngày 6: Xếp Hạng Real-Time</a></li>
+            <li class="sidebar-item"><a href="#day7" class="sidebar-link">Ngày 7: Rate Limit & Bảo Mật</a></li>
+        </ul>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <header id="overview">
+            <h1>Kế Hoạch Thực Chiến 7 Ngày: Hoàn Thiện Toàn Diện Zeetcode Backend</h1>
+            <p>Bản thiết kế chi tiết nâng cấp kiến trúc Microservices kết hợp CSDL lai (Hybrid Polyglot Persistence: SQL + NoSQL) cùng mô hình mạng xã hội học thuật (Social Learning Platform).</p>
+        </header>
+
+        <div class="meta-grid">
+            <div class="meta-card">
+                <h3>Mô Hình Cơ Sở Dữ Liệu</h3>
+                <p>PostgreSQL (Prisma) + MongoDB</p>
+            </div>
+            <div class="meta-card">
+                <h3>Xử Lý Tải Thuật Toán</h3>
+                <p>Redis Sorted Sets (ZSET) + BullMQ</p>
+            </div>
+            <div class="meta-card">
+                <h3>Cấp Độ Kỹ Thuật CV</h3>
+                <p>Intern / Junior Cấp Cao</p>
+            </div>
+        </div>
+
+        <!-- DAY 1 -->
+        <section id="day1" class="day-section">
+            <div class="day-header">
+                <h2 class="day-title">Ngày 1: Khởi Tạo UserService Với SQL (PostgreSQL & Prisma ORM) + Hệ Thống Follower</h2>
+                <span class="day-badge">Ngày 1</span>
+            </div>
+            <p>Xây dựng một dịch vụ độc lập chịu trách nhiệm định danh, lưu trữ thông tin thực thể người dùng có cấu trúc quan hệ cao và thiết lập mô hình quan hệ tự liên kết (Self-Relation) để phục vụ tính năng Theo dõi (Follower/Following) xã hội.</p>
+
+            <div class="sub-heading">1. Thiết kế Tầng Dữ Liệu (Prisma Schema)</div>
+            <p>Mô hình quan hệ giữa các lập trình viên sử dụng cấu trúc bảng trung gian quản lý hai liên kết đối xứng trỏ về cùng một bảng Người dùng:</p>
+            <pre>// schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum PrivacySetting {
+  PUBLIC
+  FOLLOWERS_ONLY
+  PRIVATE
+}
+
+model User {
+  id               String         @id @default(uuid())
+  username         String         @unique
+  email            String         @unique
+  passwordHash     String
+  profileVisibility PrivacySetting @default(PUBLIC)
+  createdAt        DateTime       @default(now())
+
+  // Các mối quan hệ tự liên kết (Self-relations) qua bảng trung gian Follower
+  following        Followers[]    @relation("UserAsFollower")
+  followers        Followers[]    @relation("UserAsFollowing")
+}
+
+model Followers {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower    User     @relation("UserAsFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserAsFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId]) // Khóa chính tổ hợp đảm bảo không thể follow trùng lặp
+}</pre>
+
+            <div class="sub-heading">2. Triển Khai Luồng Nghiệp Vụ (Business Logic & Middleware)</div>
+            <ul>
+                <li><strong>Auth Middleware:</strong> <code>UserService</code> cấp mã JWT khi đăng nhập thành công. Các API Gateway hoặc Router cục bộ ở <code>SubmissionService</code> sẽ bóc tách mã Token này để điền giá trị <code>req.user = { id: ... }</code>.</li>
+                <li><strong>API Quản Lý Mối Quan Hệ:</strong> Xây dựng các hàm điều khiển <code>followUser(followerId, targetId)</code> và <code>unfollowUser(followerId, targetId)</code> thực hiện trực tiếp thông qua Prisma Client.</li>
+            </ul>
+
+            <div class="callout-box">
+                <strong>📌 Điểm sáng Kiến Trúc trong CV:</strong>
+                Chứng minh khả năng áp dụng nhuần nhuyễn mô hình CSDL Lai (Polyglot Persistence): Sử dụng thế mạnh toàn vẹn dữ liệu (ACID) tuyệt đối của RDBMS để xử lý tài khoản, các quan hệ ràng buộc khóa ngoại (Foreign Keys) phức tạp, đồng thời giữ nguyên MongoDB cho các log dữ liệu phi cấu trúc lớn.
+            </div>
+        </section>
+
+        <!-- DAY 2 -->
+        <section id="day2" class="day-section">
+            <div class="day-header">
+                <h2 class="day-title">Ngày 2: Triển Khai API Thống Kê & Thiết Lập Bộ Lọc Kiểm Tra Quyền Riêng Tư (Privacy Guard)</h2>
+                <span class="day-badge">Ngày 2</span>
+            </div>
+            <p>Xây dựng thuật toán Aggregation tính toán tiến độ giải thuật tại <code>SubmissionService</code> kết hợp bộ lọc bảo mật phân quyền dữ liệu chéo giữa các Service dựa trên trạng thái quan hệ.</p>
+
+            <div class="sub-heading">1. Thiết kế Luồng Giao Tiếp Liên Dịch Vụ (Inter-service Flow)</div>
+            <div class="flow-diagram">
+                Client Yêu Cầu Stats User B -> SubmissionService -> Gửi HTTP Gọi Sang UserService -> Trả Về Trạng Thái Follow (True/False) + Privacy -> SubmissionService Tính Toán Hoặc Chặn (403 Forbidden)
+            </div>
+
+            <div class="sub-heading">2. Mã Nguồn Xử Lý Bảo Mật Quyền Riêng Tư (Submission Controller)</div>
+            <pre>import { Request, Response } from 'express';
+import axios from 'axios';
+import { SubmissionRepository } from '../repositories/submission.repository';
+
+const submissionRepo = new SubmissionRepository();
+
+export const getCompletionStats = async (req: Request, res: Response) => {
+    const requestorId = req.user.id; // Lấy từ mã JWT Token người gửi request
+    const targetUserId = req.params.userId; // Người dùng cần xem hồ sơ
+
+    if (requestorId === targetUserId) {
+        // Nếu tự xem chính mình, bỏ qua kiểm tra quyền bảo mật
+        const stats = await submissionRepo.aggregateUserStats(targetUserId);
+        return res.status(200).json({ success: true, data: stats });
+    }
+
+    try {
+        // Thực hiện lệnh gọi HTTP nội bộ sang UserService để xác thực mối quan hệ xã hội
+        const userCheckResponse = await axios.get(`http://localhost:4000/api/v1/users/${targetUserId}/privacy-check`, {
+            params: { viewerId: requestorId }
+        });
+
+        const { isAllowed } = userCheckResponse.data;
+        if (!isAllowed) {
+            return res.status(403).json({ 
+                success: false, 
+                message: "Hồ sơ của người dùng này được đặt ở chế độ riêng tư hoặc chỉ hiển thị với người theo dõi!" 
+            });
+        }
+
+        const stats = await submissionRepo.aggregateUserStats(targetUserId);
+        return res.status(200).json({ success: true, data: stats });
+
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Lỗi kết nối liên dịch vụ giữa các microservices." });
+    }
+};</pre>
+
+            <div class="sub-heading">3. Thuật Toán Thống Kê Tiến Độ Với MongoDB Aggregation Pipeline</div>
+            <pre>// submission.repository.ts
+async aggregateUserStats(userId: string) {
+    return await SubmissionModel.aggregate([
+        { $match: { userId: userId, status: 'Accepted' } },
+        { 
+            $group: { 
+                _id: "$difficulty", 
+                uniqueSolvedProblems: { $addToSet: "$problemId" } // Lọc bỏ trùng lặp nếu nộp 1 bài nhiều lần
+            } 
+        },
+        {
+            $project: {
+                difficulty: "$_id",
+                count: { $size: "$uniqueSolvedProblems" },
+                _id: 0
+            }
+        }
+    ]);
+}</pre>
+        </section>
+
+        <!-- DAY 3 -->
+        <section id="day3" class="day-section">
+            <div class="day-header">
+                <h2 class="day-title">Ngày 3: Hoàn Thiện Module Bài Giải Nâng Cao (Editorial) & Ánh Xạ Đường Dẫn Băng Thông S3/CDN</h2>
+                <span class="day-badge">Ngày 3</span>
+            </div>
+            <p>Tăng cường sức mạnh nội dung cho <code>ProblemService</code> bằng cách tích hợp trường dữ liệu Hướng Dẫn Giải chi tiết, kết hợp cấu trúc DTO linh hoạt xử lý luồng Video tùy biến theo hạ tầng phát triển.</p>
+
+            <div class="sub-heading">1. Mở Rộng Cấu Trúc Dữ Liệu Bài Tập (Mongoose Schema)</div>
+            <pre>// problem.model.ts
+import { Schema, model } from 'mongoose';
+
+const problemSchema = new Schema({
+    title: { type: String, required: true, trim: true },
+    description: { type: String, required: true },
+    difficulty: { type: String, enum: ['easy', 'medium', 'hard'], required: true },
+    testCases: [{ input: String, output: String }],
+    editorial: {
+        solutionMarkdown: { type: String, default: "" },
+        videoProvider: { type: String, enum: ['youtube', 'cdn'], default: 'youtube' },
+        videoKey: { type: String, default: "" } // Lưu ID Youtube hoặc Object Key trên AWS S3
+    }
+}, { timestamps: true });
+
+export const Problem = model('Problem', problemSchema);</pre>
+
+            <div class="sub-heading">2. Giải Pháp Ánh Xạ DTO Động Theo Môi Trường Triển Khai</div>
+            <p>Nhằm tối ưu hóa băng thông và chi phí cho từng giai đoạn, tầng DTO (Data Transfer Object) sẽ thực hiện nhiệm vụ biên dịch dữ liệu trước khi trả về phía Client:</p>
+            <pre>// problem.dto.ts
+export class ProblemResponseDTO {
+    id: string;
+    title: string;
+    description: string;
+    difficulty: string;
+    editorial: {
+        markdown: string;
+        videoUrl: string;
+    };
+
+    constructor(problemDoc: any) {
+        this.id = problemDoc._id;
+        this.title = problemDoc.title;
+        this.description = problemDoc.description;
+        this.difficulty = problemDoc.difficulty;
+        
+        let compiledVideoUrl = "";
+        if (problemDoc.editorial?.videoProvider === 'youtube') {
+            compiledVideoUrl = `https://www.youtube.com/embed/${problemDoc.editorial.videoKey}`;
+        } else if (problemDoc.editorial?.videoProvider === 'cdn') {
+            // Tự động cấu hình ánh xạ sang domain của AWS CloudFront CDN khi chạy Production
+            const cdnDomain = process.env.AWS_CLOUDFRONT_DOMAIN || "https://static.zeetcode.io";
+            compiledVideoUrl = `${cdnDomain}/videos/${problemDoc.editorial.videoKey}`;
+        }
+
+        this.editorial = {
+            markdown: problemDoc.editorial?.solutionMarkdown || "",
+            videoUrl: compiledVideoUrl
+        };
+    }
+}</pre>
+        </section>
+
+        <!-- DAY 4 -->
+        <section id="day4" class="day-section">
+            <div class="day-header">
+                <h2 class="day-title">Ngày 4: Xây Dựng Bản Đồ Học Tập (Roadmap Skill Tree) Bằng Mô Hình Đồ Thị Cấu Trúc Dữ Liệu</h2>
+                <span class="day-badge">Ngày 4</span>
+            </div>
+            <p>Thiết kế hệ thống sơ đồ cây lộ trình phân cấp bằng cấu trúc danh sách kề (Adjacency List Model) trong NoSQL để quản lý các node phụ thuộc học thuật đan xen phức tạp một cách gọn gàng.</p>
+
+            <div class="sub-heading">1. Định Nghĩa Thực Thể Đồ Thị Định Hướng (Directed Graph Schema)</div>
+            <pre>// roadmapNode.model.ts
+import { Schema, model } from 'mongoose';
+
+const roadmapNodeSchema = new Schema({
+    name: { type: String, required: true, unique: true }, // "Arrays & Hashing"
+    slug: { type: String, required: true, unique: true, index: true }, // "arrays-hashing"
+    description: { type: String, default: "" },
+    
+    // Mảng chứa slug của tất cả các Node bắt buộc phải hoàn thành trước đó (Khóa liên kết Đồ thị)
+    parentNodes: [{ type: String }], 
+    
+    // Liên kết tập hợp các bài tập bắt buộc thuộc nhóm chủ đề này
+    problems: [{ type: Schema.Types.ObjectId, ref: 'Problem' }] 
+}, { timestamps: true });
+
+export const RoadmapNode = model('RoadmapNode', roadmapNodeSchema);</pre>
+
+            <div class="sub-heading">2. Tầng Controller Truy Vấn Trả Về Cấu Trúc Đồ Thị Tuyến Tính</div>
+            <pre>// roadmap.controller.ts
+import { Request, Response } from 'express';
+import { RoadmapNode } from '../models/roadmapNode.model';
+
+export const getFullRoadmap = async (req: Request, res: Response) => {
+    // Thực hiện truy vấn đồng thời nạp đầy đủ thông tin đề bài (populate) từ bảng Problem liên kết
+    const fullGraph = await RoadmapNode.find({})
+        .populate('problems', 'title difficulty')
+        .lean();
+
+    return res.status(200).json({
+        success: true,
+        message: "Tải bản đồ lộ trình cấu trúc đồ thị thành công!",
+        data: fullGraph
+    });
+};</pre>
+            <div class="callout-box">
+                <strong>💡 Tư duy Thuật toán thực tế:</strong>
+                Mô hình này mô phỏng hoàn hảo một **Đồ thị có hướng không chu trình (DAG - Directed Acyclic Graph)**. Tại Frontend, cấu trúc mảng danh sách kề này sẽ được truyền trực tiếp vào các thư viện vẽ đồ thị chuyên sâu như <code>React Flow</code> để tính toán tọa độ vẽ đường nối mũi tên liên kết giữa các bài học.
+            </div>
+        </section>
+
+        <!-- DAY 5 -->
+        <section id="day5" class="day-section">
+            <div class="day-header">
+                <h2 class="day-title">Ngày 5: Thiết Kế Core Engine Cho Hệ Thống Giải Đấu Thuật Toán (Contest Service)</h2>
+                <span class="day-badge">Ngày 5</span>
+            </div>
+            <p>Triển khai module quản lý trạng thái thời gian thực cho các cuộc thi lập trình thi đấu (Contest) có giới hạn khung giờ nghiêm ngặt và bộ lọc đánh chặn lượt nộp bài hợp lệ.</p>
+
+            <div class="sub-heading">1. Thiết Kế Bản Ghi Cuộc Thi Lập Trình (Contest Schema)</div>
+            <pre>// contest.model.ts
+import { Schema, model } from 'mongoose';
+
+const contestSchema = new Schema({
+    title: { type: String, required: true },
+    description: { type: String, default: "" },
+    startTime: { type: Date, required: true, index: true },
+    endTime: { type: Date, required: true },
+    
+    // Bộ đề bài được khóa riêng cho cuộc thi này
+    problems: [{ type: Schema.Types.ObjectId, ref: 'Problem' }] 
+}, { timestamps: true });
+
+export const Contest = model('Contest', contestSchema);</pre>
+
+            <div class="sub-heading">2. Cơ Chế Đánh Chặn Hoạt Động (Contest Validation Hook)</div>
+            <p>Tại API nộp bài của <code>SubmissionService</code>, hệ thống cần bổ sung một hàm Hook trung gian để kiểm tra xem lượt submit code này có thuộc về một cuộc thi đang diễn ra hay không:</p>
+            <pre>// submission.service.ts Luồng xử lý tạo Submission
+async createSubmission(data: any) {
+    const { userId, problemId, code, language, contestId } = data;
+
+    let isContestValid = false;
+    if (contestId) {
+        // Thực hiện lệnh gọi chéo hoặc truy vấn thông tin thời gian của giải đấu
+        const contest = await ContestModel.findById(contestId);
+        const now = new Date();
+        
+        if (contest && now >= contest.startTime && now <= contest.endTime) {
+            isContestValid = true;
+        }
+    }
+
+    const submission = await SubmissionModel.create({
+        userId,
+        problemId,
+        code,
+        language,
+        difficulty: data.difficulty,
+        // Nếu hợp lệ, gắn nhãn contestId vào bản ghi để phục vụ tính điểm xếp hạng ở Ngày 6
+        contestId: isContestValid ? contestId : null 
+    });
+
+    // Đẩy tác vụ vào hàng đợi Message Queue để chấm điểm bất đồng bộ
+    await submissionProducer.pushToQueue(submission);
+    return submission;
+}</pre>
+        </section>
+
+        <!-- DAY 6 -->
+        <section id="day6" class="day-section">
+            <div class="day-header">
+                <h2 class="day-title">Ngày 6: Xây Dựng Bảng Xếp Hạng Siêu Tốc Thời Gian Thực Với Redis Sorted Sets (ZSET)</h2>
+                <span class="day-badge">Ngày 6</span>
+            </div>
+            <p>Giải quyết triệt để bài toán thắt nút cổ chai (Bottleneck) hiệu năng khi hàng nghìn thí sinh cùng submit code và tra cứu bảng xếp hạng liên tục bằng cách ứng dụng cấu trúc cấu trúc dữ liệu Sorted Sets của Redis.</p>
+
+            <div class="sub-heading">1. Kiến Trúc Luồng Cập Nhật Điểm Bất Đồng Bộ</div>
+            <div class="flow-diagram">
+                EvaluationWorker (Docker chạy xong bài) -> Kết Quả: Accepted -> Gọi Hàm Cộng Điểm Vào Redis ZSET -> API Contest Đọc Trực Tiếp Từ RAM Redis Siêu Tốc
+            </div>
+
+            <div class="sub-heading">2. Thuật Toán Cập Nhật Điểm Và Giải Quyết Tranh Chấp Trùng Điểm (Tie-Breaking)</div>
+            <p>Trong thi đấu giải thuật, nếu hai người có cùng điểm số, người nào hoàn thành cuộc thi với **tổng thời gian sớm hơn** sẽ đứng trước. Chúng ta áp dụng thuật toán ép giá trị thời gian (Timestamp) vào phần thập phân của điểm số:</p>
+            <pre>// leaderboard.service.ts (Chạy bên trong Evaluation Service Worker)
+import { redisClient } from '../config/redis.config';
+
+export const processContestLeaderboard = async (submission: any) => {
+    if (!submission.contestId || submission.status !== 'Accepted') return;
+
+    const { contestId, userId } = submission;
+    const baseScoreIncrement = 100; // Mỗi bài toán giải đúng được cộng 100 điểm gốc
+
+    // Thuật toán Tie-Breaking: Lấy khoảng cách thời gian còn lại tối đa của vũ trụ trừ đi thời gian hiện tại
+    // Giúp cho người submit sớm hơn sẽ có phần thập phân LỚN HƠN, từ đó xếp hạng CAO HƠN khi sắp xếp giảm dần
+    const maxFutureTimestamp = 9999999999;
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const tieBreaker = (maxFutureTimestamp - currentTimestamp) / maxFutureTimestamp;
+
+    // Ví dụ điểm thực tế ghi vào Redis: 100.83748293
+    const finalScoreToIncrement = baseScoreIncrement + tieBreaker;
+
+    // Sử dụng lệnh ZINCRBY của Redis để cộng dồn điểm số nguyên tử (Atomic) trong bộ nhớ RAM
+    await redisClient.zincrby(`contest:leaderboard:${contestId}`, finalScoreToIncrement, userId);
+};</pre>
+
+            <div class="sub-heading">3. API Lấy Bảng Xếp Hạng Tốc Độ Cao (Contest Controller)</div>
+            <pre>export const getLeaderboard = async (req: Request, res: Response) => {
+    const { contestId } = req.params;
+    
+    // Truy vấn nhanh phạm vi từ vị trí 0 đến 9 để lấy Top 10 kèm điểm số từ Redis RAM (Thời gian phản hồi < 2ms)
+    const rawLeaderboard = await redisClient.zrevrange(`contest:leaderboard:${contestId}`, 0, 9, 'WITHSCORES');
+    
+    // Định dạng lại mảng thô [user_id_1, score_1, user_id_2, score_2] thành JSON hoàn chỉnh
+    const formattedLeaderboard = [];
+    for(let i = 0; i < rawLeaderboard.length; i += 2) {
+        formattedLeaderboard.push({
+            rank: (i / 2) + 1,
+            userId: rawLeaderboard[i],
+            totalScore: Math.floor(parseFloat(rawLeaderboard[i+1])) // Lấy phần nguyên hiển thị cho người dùng
+        });
+    }
+
+    return res.status(200).json({ success: true, data: formattedLeaderboard });
+};</pre>
+        </section>
+
+        <!-- DAY 7 -->
+        <section id="day7" class="day-section">
+            <div class="day-header">
+                <h2 class="day-title">Ngày 7: Gia Cố Phòng Thủ Hệ Thống (Rate Limiting Middleware) & Giới Hạn Tài Nguyên Docker Container</h2>
+                <span class="day-badge">Ngày 7</span>
+            </div>
+            <p>Ngày cuối cùng tập trung hoàn toàn vào việc tối ưu an toàn hệ thống, phòng chống tấn công từ chối dịch vụ (DDoS Spam Submit) và cấu hình cô lập tài nguyên phần cứng cho môi trường Sandbox.</p>
+
+            <div class="sub-heading">1. Triển Khai Middleware Chống Spam Code Sử Dụng Thuật Toán Token Bucket Tinh Gọn</div>
+            <pre>// rateLimiter.middleware.ts
+import { Request, Response, NextFunction } from 'express';
+import { redisClient } from '../config/redis.config';
+
+export const submissionRateLimiter = async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user?.id || req.ip; // Định danh dựa trên ID tài khoản hoặc IP mạng
+    const redisKey = `limiter:submission:${userId}`;
+
+    // Tăng giá trị đếm nguyên tử trong Redis
+    const requestCount = await redisClient.incr(redisKey);
+    
+    if (requestCount === 1) {
+        // Đặt thời gian đóng băng hết hạn là 15 giây. Trong 15 giây này không được submit quá 1 lần.
+        await redisClient.expire(redisKey, 15);
+    }
+
+    if (requestCount > 1) {
+        return res.status(429).json({
+            success: false,
+            message: "Hệ thống phát hiện hành vi spam! Vui lòng đợi 15 giây giữa các lần nộp mã nguồn."
+        });
+    }
+
+    next();
+};</pre>
+
+            <div class="sub-heading">2. Giới Hạn Phần Cứng Sandbox Chống Vòng Lặp Vô Hạn (createContainer.util.ts)</div>
+            <p>Nếu người dùng nộp một đoạn code có chứa mã độc hoặc vòng lặp vô hạn (<code>while(true)</code>), nó có thể ăn hết CPU/RAM của server host. Chúng ta cần ép Docker giới hạn nghiêm ngặt bộ nhớ phần cứng cứng:</p>
+            <pre>// Cấu hình tích hợp bổ sung vào hàm createContainer sử dụng dockerode
+const container = await docker.createContainer({
+    Image: image,
+    Cmd: bootCmd,
+    AttachStdout: true,
+    AttachStderr: true,
+    HostConfig: {
+        Memory: 128 * 1024 * 1024, // Giới hạn cứng tối đa 128MB RAM cho mỗi container chạy code
+        MemorySwap: 0,             // Tắt hoàn toàn bộ nhớ Swap ảo để bảo vệ ổ đĩa cứng
+        CpuQuota: 50000,           // Giới hạn thời gian sử dụng CPU tối đa 50% của 1 Core vật lý
+        CpuPeriod: 100000,
+        NetworkMode: 'none'        // Cực kỳ quan trọng: Tắt toàn bộ kết nối Internet của container sandbox để chống rò rỉ dữ liệu
+    }
+});</pre>
+
+            <div class="callout-box social-architecture">
+                <strong>🛡️ Đánh giá từ Chuyên Gia Phỏng Vấn Kỹ Thuật:</strong>
+                Việc biết ngắt kết nối mạng (<code>NetworkMode: 'none'</code>) và khống chế RAM/CPU vật lý của Container Sandbox chứng minh ứng viên có tư duy cực kỳ sâu sắc về **An toàn bảo mật hệ thống (Infra Security)**, hiểu rõ rủi ro khi thực thi mã nguồn lạ (Untrusted Code Execution) trên máy chủ doanh nghiệp.
+            </div>
+        </section>
+
+        <footer>
+            <p>Zeetcode.io Backend Engineering Roadmap - Phiên Bản Kiến Trúc Thực Chiến 2026. Được thiết kế dành riêng cho Đặng Gia Nguyên.</p>
+        </footer>
+    </main>
+
+    <script>
+        // JS đơn giản để làm mượt menu active khi cuộn trang
+        const links = document.querySelectorAll('.sidebar-link');
+        const sections = document.querySelectorAll('.day-section, header');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 60) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            links.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href').includes(current)) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
