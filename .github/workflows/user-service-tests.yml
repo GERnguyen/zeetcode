@@ -14,6 +14,9 @@ jobs:
   test:
     name: Run UserService tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./be/UserService
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,14 +26,12 @@ jobs:
         with:
           node-version: "20.19"
           cache: "npm"
-          cache-dependency-path: be/UserService/package-lock.json
+          cache-dependency-path: ./be/UserService/package-lock.json
 
       - name: Install dependencies
-        working-directory: be/UserService
         run: npm ci
 
       - name: Run tests
-        working-directory: be/UserService
         env:
           NODE_ENV: test
         run: npm test --if-present
