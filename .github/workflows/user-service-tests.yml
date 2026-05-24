@@ -1,0 +1,36 @@
+name: UserService CI - tests
+
+on:
+  push:
+    branches: [ 'dev', 'main' ]
+    paths:
+      - 'be/UserService/**'
+  pull_request:
+    branches: [ 'dev', 'main' ]
+    paths:
+      - 'be/UserService/**'
+
+jobs:
+  test:
+    name: Run UserService tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: be/UserService/package-lock.json
+
+      - name: Install dependencies
+        working-directory: be/UserService
+        run: npm ci
+
+      - name: Run tests
+        working-directory: be/UserService
+        env:
+          NODE_ENV: test
+        run: npm test --if-present

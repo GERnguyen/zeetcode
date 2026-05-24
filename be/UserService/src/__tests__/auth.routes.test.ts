@@ -36,7 +36,8 @@ const mockedRequestPasswordReset = jest.mocked(requestPasswordReset);
 const mockedResetPassword = jest.mocked(resetPassword);
 
 const accessSecret = process.env.JWT_ACCESS_SECRET || "default_access_secret";
-const refreshSecret = process.env.JWT_REFRESH_SECRET || "default_refresh_secret";
+const refreshSecret =
+  process.env.JWT_REFRESH_SECRET || "default_refresh_secret";
 
 describe("Auth routes", () => {
   beforeEach(() => {
@@ -61,17 +62,17 @@ describe("Auth routes", () => {
       message: "Please verify your email to continue",
     } as never);
 
-    const response = await request(app)
-      .post("/api/v1/auth/register")
-      .send({
-        username: "alice",
-        email: "alice@example.com",
-        password: "password123",
-      });
+    const response = await request(app).post("/api/v1/auth/register").send({
+      username: "alice",
+      email: "alice@example.com",
+      password: "password123",
+    });
 
     expect(response.status).toBe(201);
     expect(response.body.success).toBe(true);
-    expect(response.body.data.message).toBe("Please verify your email to continue");
+    expect(response.body.data.message).toBe(
+      "Please verify your email to continue",
+    );
     expect(mockedRegisterUser).toHaveBeenCalledWith({
       username: "alice",
       email: "alice@example.com",
