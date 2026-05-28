@@ -1,11 +1,11 @@
 import express from "express";
 import { SubmissionFactory } from "../../factories/submission.factory";
 import { authenticateAccessToken } from "../../middlewares/auth.middleware";
-import { validateRequestBody, validateQueryParams } from "../../validators";
+import { validateRequestBody, validateRequestParams } from "../../validators";
 import {
   createSubmissionSchema,
+  submissionProblemParamsSchema,
   updateSubmissionStatusSchema,
-  submissionQuerySchema,
 } from "../../validators/submission.validator";
 
 const submissionRouter = express.Router();
@@ -26,13 +26,20 @@ submissionRouter.post(
   },
 );
 
+// GET /submissions/me/accepted-problems - Get all accepted problems for current user
+submissionRouter.get(
+  "/me/accepted-problems",
+  authenticateAccessToken,
+  submissionController.getMyAcceptedProblems,
+);
+
 // GET /submissions/:id - Get submission by ID
 submissionRouter.get("/:id", submissionController.getSubmissionById);
 
 // GET /submissions/problem/:problemId - Get all submissions for a problem
 submissionRouter.get(
   "/problem/:problemId",
-  validateQueryParams(submissionQuerySchema),
+  validateRequestParams(submissionProblemParamsSchema),
   submissionController.getSubmissionsByProblemId,
 );
 

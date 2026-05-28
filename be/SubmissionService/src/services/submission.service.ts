@@ -5,7 +5,11 @@ import {
 } from "../models/submission.model";
 import { ISubmissionRepository } from "../repositories/submission.repository";
 import { BadRequestError, NotFoundError } from "../utils/errors/app.error";
-import { getProblemById } from "../apis/problem.api";
+import {
+  getProblemById,
+  getProblemsByIds,
+  IProblemDetails,
+} from "../apis/problem.api";
 import { addSubmissionJob } from "../producers/submission.producer";
 import logger from "../config/logger.config";
 
@@ -15,6 +19,18 @@ export interface ISubmissionService {
   ): Promise<ISubmission | null>;
   getSubmissionById(id: string): Promise<ISubmission | null>;
   getSubmissionsByProblemId(problemId: string): Promise<ISubmission[]>;
+  getAcceptedProblemsByUserId(userId: string): Promise<{
+    problemIds: string[];
+    problems: IProblemDetails[];
+    stats: {
+      totalSolved: number;
+      byDifficulty: {
+        easy: number;
+        medium: number;
+        hard: number;
+      };
+    };
+  }>;
   updateSubmissionStatus(
     id: string,
     payload: ISubmissionEvaluationUpdate,
@@ -91,6 +107,70 @@ export class SubmissionService implements ISubmissionService {
 
   async getSubmissionsByProblemId(problemId: string): Promise<ISubmission[]> {
     return await this.submissionRepository.findByProblemId(problemId);
+  }
+
+  async getAcceptedProblemsByUserId(userId: string): Promise<{
+    problemIds: string[];
+    problems: IProblemDetails[];
+    stats: {
+      totalSolved: number;
+      byDifficulty: {
+        easy: number;
+        medium: number;
+        hard: number;
+      };
+    };
+  }> {
+    if (!userId) {
+      throw new BadRequestError("User ID is required");
+    }
+
+    const problemIds =
+      await this.submissionRepository.findAcceptedProblemIdsByUserId(userId);
+
+    if (problemIds.length === 0) {
+      return {
+        problemIds: [],
+        problems: [],
+        stats: {
+          totalSolved: 0,
+          byDifficulty: {
+            easy: 0,
+            medium: 0,
+            hard: 0,
+          },
+        },
+      };
+    }
+
+    const problems = await getProblemsByIds(problemIds);
+    const problemMap = new Map(
+      problems.map((problem) => [problem.id, problem]),
+    );
+    const orderedProblems = problemIds
+      .map((problemId) => problemMap.get(problemId))
+      .filter((problem): problem is IProblemDetails => Boolean(problem));
+
+    const byDifficulty = {
+      easy: 0,
+      medium: 0,
+      hard: 0,
+    };
+
+    for (const problem of orderedProblems) {
+      if (problem.difficulty === "easy") byDifficulty.easy += 1;
+      if (problem.difficulty === "medium") byDifficulty.medium += 1;
+      if (problem.difficulty === "hard") byDifficulty.hard += 1;
+    }
+
+    return {
+      problemIds,
+      problems: orderedProblems,
+      stats: {
+        totalSolved: orderedProblems.length,
+        byDifficulty,
+      },
+    };
   }
 
   async updateSubmissionStatus(

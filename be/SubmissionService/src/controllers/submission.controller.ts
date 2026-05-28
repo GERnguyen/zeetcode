@@ -91,6 +91,27 @@ export class SubmissionController {
     });
   };
 
+  getMyAcceptedProblems = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user?.id;
+
+    logger.info("Fetching accepted problems for current user", { userId });
+
+    const data = await this.submissionService.getAcceptedProblemsByUserId(
+      userId || "",
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Accepted problems fetched successfully",
+      data,
+    });
+  };
+
   deleteSubmissionById = async (
     req: Request,
     res: Response,

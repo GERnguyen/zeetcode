@@ -60,3 +60,7 @@ export const submissionQuerySchema = z.object({
     .pipe(z.number().min(1))
     .optional(),
 });
+
+export const submissionProblemParamsSchema = z.object({
+  problemId: z.string().min(1, "Problem ID is required"),
+});

@@ -1,30 +1,15 @@
 import { prisma } from "../config/db.config";
 import logger from "../config/logger.config";
 import { ConflictError, InternalServerError } from "../utils/errors/app.error";
-import { FollowStatus, Prisma, User } from "../generated/prisma/client";
+import { Prisma, User } from "../generated/prisma/client";
 
 export interface ListUsersOptions {
   skip?: number;
   take?: number;
 }
 
-export interface UserRelationsOptions {
-  followStatus?: FollowStatus;
-}
-
 export type UserPublic = Prisma.UserGetPayload<{
   select: typeof userPublicSelect;
-}>;
-
-export type UserWithRelations = Prisma.UserGetPayload<{
-  include: {
-    followers: {
-      include: { follower: { select: typeof userPublicSelect } };
-    };
-    following: {
-      include: { following: { select: typeof userPublicSelect } };
-    };
-  };
 }>;
 
 const userPublicSelect = {
@@ -54,22 +39,6 @@ const isRecordNotFound = (error: unknown) =>
 const isUniqueConstraint = (error: unknown) =>
   isPrismaKnownError(error) && error.code === "P2002";
 
-const buildUserRelationsInclude = (options: UserRelationsOptions = {}) => {
-  const { followStatus } = options;
-  const followersWhere = followStatus ? { status: followStatus } : undefined;
-
-  return {
-    followers: {
-      where: followersWhere,
-      include: { follower: { select: userPublicSelect } },
-    },
-    following: {
-      where: followersWhere,
-      include: { following: { select: userPublicSelect } },
-    },
-  };
-};
-
 export async function createUser(data: Prisma.UserCreateInput): Promise<User> {
   try {
     return await prisma.user.create({ data });
@@ -90,25 +59,6 @@ export async function findUserById(id: string): Promise<User | null> {
     return await prisma.user.findUnique({ where: { id } });
   } catch (error) {
     logger.error("Failed to find user by id", { error, id });
-    throw new InternalServerError("Failed to find user by id");
-  }
-}
-
-export async function findUserByIdWithRelations(
-  id: string,
-  options: UserRelationsOptions = {},
-): Promise<UserWithRelations | null> {
-  try {
-    return await prisma.user.findUnique({
-      where: { id },
-      include: buildUserRelationsInclude(options),
-    });
-  } catch (error) {
-    logger.error("Failed to find user with relations by id", {
-      error,
-      id,
-      options,
-    });
     throw new InternalServerError("Failed to find user by id");
   }
 }
@@ -134,29 +84,6 @@ export async function listUsers(
     });
   } catch (error) {
     logger.error("Failed to list users", { error, skip, take });
-    throw new InternalServerError("Failed to list users");
-  }
-}
-
-export async function listUsersWithRelations(
-  listOptions: ListUsersOptions = {},
-  relationOptions: UserRelationsOptions = {},
-): Promise<UserWithRelations[]> {
-  const { skip = 0, take = 20 } = listOptions;
-  try {
-    return await prisma.user.findMany({
-      skip,
-      take,
-      orderBy: { createdAt: "desc" },
-      include: buildUserRelationsInclude(relationOptions),
-    });
-  } catch (error) {
-    logger.error("Failed to list users with relations", {
-      error,
-      skip,
-      take,
-      relationOptions,
-    });
     throw new InternalServerError("Failed to list users");
   }
 }

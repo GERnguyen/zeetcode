@@ -2,12 +2,14 @@ import {
   ISubmissionEvaluationUpdate,
   ISubmission,
   Submission,
+  SubmissionVerdict,
 } from "../models/submission.model";
 
 export interface ISubmissionRepository {
   create(submissionData: Partial<ISubmission>): Promise<ISubmission>;
   findById(id: string): Promise<ISubmission | null>;
   findByProblemId(problemId: string): Promise<ISubmission[]>;
+  findAcceptedProblemIdsByUserId(userId: string): Promise<string[]>;
   updateEvaluation(
     id: string,
     payload: ISubmissionEvaluationUpdate,
@@ -27,6 +29,13 @@ export class SubmissionRepository implements ISubmissionRepository {
 
   async findByProblemId(problemId: string): Promise<ISubmission[]> {
     return await Submission.find({ problemId });
+  }
+
+  async findAcceptedProblemIdsByUserId(userId: string): Promise<string[]> {
+    return await Submission.distinct("problemId", {
+      userId,
+      verdict: SubmissionVerdict.AC,
+    });
   }
 
   async updateEvaluation(

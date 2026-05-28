@@ -4,6 +4,7 @@ export interface IProblemRepository {
   createProblem(problem: Partial<IProblem>): Promise<IProblem>;
   getAllProblems(): Promise<{ problems: IProblem[]; total: number }>;
   getProblemById(id: string): Promise<IProblem | null>;
+  getProblemsByIds(ids: string[]): Promise<IProblem[]>;
   updateProblem(
     id: string,
     updateData: Partial<IProblem>,
@@ -21,6 +22,10 @@ export class ProblemRepository implements IProblemRepository {
 
   async getProblemById(id: string): Promise<IProblem | null> {
     return await Problem.findById(id);
+  }
+
+  async getProblemsByIds(ids: string[]): Promise<IProblem[]> {
+    return await Problem.find({ _id: { $in: ids } }).sort({ createdAt: -1 });
   }
 
   async getAllProblems(): Promise<{ problems: IProblem[]; total: number }> {

@@ -21,7 +21,7 @@ export const serverConfig: ServerConfig = {
   PORT: Number(process.env.PORT) || 3001,
   DB_URL: process.env.DB_URL || "",
   PROBLEM_SERVICE_URL:
-    process.env.PROBLEM_SERVICE_URL || "http://localhost:3000",
+    process.env.PROBLEM_SERVICE_URL || "http://localhost:3000/api/v1",
   JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || "",
   REDIS_HOST: process.env.REDIS_HOST || "localhost",
   REDIS_PORT: Number(process.env.REDIS_PORT) || 6379,

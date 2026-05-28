@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import logger from "../config/logger.config";
 import { serverConfig } from "../config";
+import { InternalServerError } from "../utils/errors/app.error";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -19,7 +20,7 @@ export type SendEmailOptions = {
 export const sendEmail = async (options: SendEmailOptions) => {
   if (!serverConfig.MAIL_USER || !serverConfig.MAIL_PASS) {
     logger.error("Email credentials are not configured");
-    throw new Error("Email credentials are not configured");
+    throw new InternalServerError("Email credentials are not configured");
   }
 
   const fromAddress = serverConfig.MAIL_FROM || serverConfig.MAIL_USER;

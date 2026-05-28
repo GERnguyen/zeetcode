@@ -49,5 +49,10 @@ export const FindByDifficultySchema = z.object({
   difficulty: z.enum(["easy", "medium", "hard"]),
 });
 
+export const BatchProblemLookupSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1, "At least one problem id is required"),
+});
+
 export type CreateProblemDto = z.infer<typeof CreateProblemSchema>;
 export type UpdateProblemDto = z.infer<typeof UpdateProblemSchema>;
+export type BatchProblemLookupDto = z.infer<typeof BatchProblemLookupSchema>;

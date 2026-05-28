@@ -112,6 +112,7 @@ const submissionSchema = new mongoose.Schema<ISubmission>(
 submissionSchema.index({ userId: 1, createdAt: -1 });
 submissionSchema.index({ problemId: 1, createdAt: -1 });
 submissionSchema.index({ status: 1, verdict: 1, createdAt: -1 });
+submissionSchema.index({ userId: 1, verdict: 1, problemId: 1 });
 
 export const Submission = mongoose.model<ISubmission>(
   "Submission",

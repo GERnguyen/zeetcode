@@ -25,7 +25,7 @@ export async function updateSubmission(
 ) {
   try {
     const url = `${serverConfig.SUBMISSION_SERVICE_URL}/submissions/${submissionId}/status`;
-    logger.info("Getting problem by ID", { url });
+    logger.info("Updating submission status", { url });
     const response = await axios.patch(url, payload);
 
     if (response.status !== 200) {
@@ -35,6 +35,6 @@ export async function updateSubmission(
     return;
   } catch (error) {
     logger.error(`Failed to update submission: ${error}`);
-    return null;
+    throw new InternalServerError("Failed to update submission");
   }
 }

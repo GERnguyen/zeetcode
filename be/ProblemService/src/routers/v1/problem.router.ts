@@ -1,15 +1,14 @@
 import express from "express";
 import { validateRequestBody, validateRequestParams } from "../../validators";
 import {
+  BatchProblemLookupSchema,
   CreateProblemSchema,
   FindByDifficultySchema,
   UpdateProblemSchema,
 } from "../../validators/problem.validator";
 import { ProblemController } from "../../controllers/problem.controller";
 
-
 const problemRouter = express.Router();
-
 
 problemRouter.post(
   "/",
@@ -18,6 +17,20 @@ problemRouter.post(
 );
 
 problemRouter.get("/", ProblemController.getAllProblems);
+
+problemRouter.get("/search", ProblemController.searchProblems);
+
+problemRouter.post(
+  "/batch",
+  validateRequestBody(BatchProblemLookupSchema),
+  ProblemController.getProblemsByIds,
+);
+
+problemRouter.get(
+  "/difficulty/:difficulty",
+  validateRequestParams(FindByDifficultySchema),
+  ProblemController.findByDifficulty,
+);
 
 problemRouter.get("/:id", ProblemController.getProblemById);
 
@@ -28,13 +41,5 @@ problemRouter.put(
 );
 
 problemRouter.delete("/:id", ProblemController.deleteProblem);
-
-problemRouter.get(
-  "/difficulty/:difficulty",
-  validateRequestParams(FindByDifficultySchema),
-  ProblemController.findByDifficulty,
-);
-
-problemRouter.get("/search", ProblemController.searchProblems);
 
 export default problemRouter;

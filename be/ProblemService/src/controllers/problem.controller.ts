@@ -35,6 +35,17 @@ export const ProblemController = {
       });
   },
 
+    async getProblemsByIds(req: Request, res: Response): Promise<void> {
+            const { ids } = req.body as { ids: string[] };
+            const problems = await problemService.getProblemsByIds(ids);
+
+            res.status(200).json({
+                message: "Problems retrieved successfully",
+                success: true,
+                data: problems,
+            });
+    },
+
     async getAllProblems(req: Request, res: Response): Promise<void> {
         const { problems, total } = await problemService.getAllProblems();
         res.status(200).json({
@@ -86,7 +97,7 @@ export const ProblemController = {
     },
 
     async findByDifficulty(req: Request, res: Response): Promise<void> {
-        const difficulty = req.query.difficulty as "easy" | "medium" | "hard";
+        const difficulty = req.params.difficulty as "easy" | "medium" | "hard";
         const problems = await problemService.findByDifficulty(difficulty);
         res.status(200).json({
             message: "Problems retrieved successfully",
