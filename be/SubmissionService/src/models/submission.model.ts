@@ -1,8 +1,20 @@
 import mongoose, { Document } from "mongoose";
 
 export enum SubmissionStatus {
-  PENDING = "pending",
-  COMPLETED = "completed",
+  QUEUED = "QUEUED",
+  RUNNING = "RUNNING",
+  FINISHED = "FINISHED",
+  INTERNAL_ERROR = "INTERNAL_ERROR",
+}
+
+export enum SubmissionVerdict {
+  AC = "AC",
+  WA = "WA",
+  TLE = "TLE",
+  MLE = "MLE",
+  RE = "RE",
+  CE = "CE",
+  PE = "PE",
 }
 
 export enum SubmissionLanguage {
@@ -15,18 +27,40 @@ export interface ISubmissionData {
   status: string;
 }
 
+export interface ISubmissionJudgeMeta {
+  score?: number;
+  passedTests?: number;
+  totalTests?: number;
+  runtimeMs?: number;
+  memoryKb?: number;
+  errorMessage?: string;
+  judgeVersion?: string;
+  judgedAt?: Date;
+}
+
+export interface ISubmissionEvaluationUpdate {
+  status?: SubmissionStatus;
+  verdict?: SubmissionVerdict | null;
+  testCaseResults?: Record<string, string>;
+  judgeMeta?: ISubmissionJudgeMeta;
+}
+
 export interface ISubmission extends Document {
+  userId: string;
   problemId: string;
   code: string;
   language: SubmissionLanguage;
   status: SubmissionStatus;
-  submissionData: ISubmissionData;
+  verdict: SubmissionVerdict | null;
+  testCaseResults?: Record<string, string>;
+  judgeMeta?: ISubmissionJudgeMeta;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const submissionSchema = new mongoose.Schema<ISubmission>(
   {
+    userId: { type: String, required: [true, "User ID is required"] },
     problemId: { type: String, required: [true, "Problem ID is required"] },
     code: { type: String, required: [true, "Code is required"] },
     language: {
@@ -38,12 +72,27 @@ const submissionSchema = new mongoose.Schema<ISubmission>(
       type: String,
       required: true,
       enum: Object.values(SubmissionStatus),
-      default: SubmissionStatus.PENDING,
+      default: SubmissionStatus.QUEUED,
     },
-    submissionData: {
-      type: Object,
-      required: [true, "Submission data is required"],
-      default: {},
+    verdict: {
+      type: String,
+      enum: Object.values(SubmissionVerdict),
+      default: null,
+    },
+    testCaseResults: {
+      type: Map,
+      of: String,
+      default: undefined,
+    },
+    judgeMeta: {
+      score: { type: Number, default: undefined },
+      passedTests: { type: Number, default: undefined },
+      totalTests: { type: Number, default: undefined },
+      runtimeMs: { type: Number, default: undefined },
+      memoryKb: { type: Number, default: undefined },
+      errorMessage: { type: String, default: undefined },
+      judgeVersion: { type: String, default: undefined },
+      judgedAt: { type: Date, default: undefined },
     },
   },
   {
@@ -60,7 +109,9 @@ const submissionSchema = new mongoose.Schema<ISubmission>(
   },
 );
 
-submissionSchema.index({ createdAt: -1, status: 1 });
+submissionSchema.index({ userId: 1, createdAt: -1 });
+submissionSchema.index({ problemId: 1, createdAt: -1 });
+submissionSchema.index({ status: 1, verdict: 1, createdAt: -1 });
 
 export const Submission = mongoose.model<ISubmission>(
   "Submission",

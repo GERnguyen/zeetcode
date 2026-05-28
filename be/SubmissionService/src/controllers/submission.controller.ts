@@ -2,6 +2,13 @@ import { NextFunction, Request, Response } from "express";
 import logger from "../config/logger.config";
 import { SubmissionService } from "../services/submission.service";
 
+type AuthenticatedRequest = Request & {
+  user?: {
+    id: string;
+    role?: string;
+  };
+};
+
 export class SubmissionController {
   private submissionService: SubmissionService;
 
@@ -14,9 +21,15 @@ export class SubmissionController {
     res: Response,
     next: NextFunction,
   ) => {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user?.id;
+
     logger.info("Creating new submission", { body: req.body });
 
-    const submission = await this.submissionService.createSubmission(req.body);
+    const submission = await this.submissionService.createSubmission({
+      ...req.body,
+      userId,
+    });
 
     if (!submission) {
       logger.error("Failed to create submission", { body: req.body });
@@ -102,19 +115,22 @@ export class SubmissionController {
     next: NextFunction,
   ) => {
     const { id } = req.params;
-    const { status, submissionData } = req.body;
+    const { status, verdict, testCaseResults, judgeMeta } = req.body;
 
     logger.info("Updating submission status", {
       submissionId: id,
       status,
-      submissionData,
+      verdict,
+      testCaseResults,
+      judgeMeta,
     });
 
-    const submission = await this.submissionService.updateSubmissionStatus(
-      id,
+    const submission = await this.submissionService.updateSubmissionStatus(id, {
       status,
-      submissionData
-    );
+      verdict,
+      testCaseResults,
+      judgeMeta,
+    });
 
     logger.info("Submission status updated successfully", {
       submissionId: id,

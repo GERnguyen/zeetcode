@@ -15,31 +15,48 @@ function matchTestCasesWithResults(
   testCases: TestCase[],
   results: EvaluationResult[],
 ) {
-  const output: Record<string, string> = {};
+  const testCaseResults: Record<string, string> = {};
+  const totalTests = testCases.length;
+  let passedTests = 0;
+
   if (results.length !== testCases.length) {
-    console.log("WA");
-    return;
+    return {
+      verdict: "WA" as const,
+      testCaseResults,
+      passedTests: 0,
+      totalTests,
+    };
   }
-  testCases.map((testCase, index) => {
-    let retval = "";
-    if (results[index].status === "time_limit_exceeded") {
-      retval = "TLE";
+
+  testCases.forEach((testCase, index) => {
+    let caseVerdict = "WA";
+    if (results[index].status === "Time Limit Exceeded") {
+      caseVerdict = "TLE";
     } else if (results[index].status === "failed") {
-      retval = "Error";
-    } else {
-      // match the output with the test case output
-      if (results[index].output === testCase.output) {
-        retval = "AC";
-      } else {
-        retval = "WA";
-      }
+      caseVerdict = "RE";
+    } else if (results[index].output === testCase.output) {
+      caseVerdict = "AC";
+      passedTests += 1;
     }
 
-    console.log("retval", retval);
-    output[testCase._id] = retval;
+    testCaseResults[testCase._id] = caseVerdict;
   });
 
-  return output;
+  let verdict: "AC" | "WA" | "TLE" | "RE" = "AC";
+  if (Object.values(testCaseResults).includes("RE")) {
+    verdict = "RE";
+  } else if (Object.values(testCaseResults).includes("TLE")) {
+    verdict = "TLE";
+  } else if (Object.values(testCaseResults).includes("WA")) {
+    verdict = "WA";
+  }
+
+  return {
+    verdict,
+    testCaseResults,
+    passedTests,
+    totalTests,
+  };
 }
 
 async function setupEvaluationWorker() {
@@ -53,6 +70,10 @@ async function setupEvaluationWorker() {
       console.log("data.problem.testcases", data.problem.testcases);
 
       try {
+        await updateSubmission(data.submissionId, {
+          status: "RUNNING",
+        });
+
         const testCasesRunnerPromise = data.problem.testcases.map(
           (testcase) => {
             return runCode({
@@ -78,9 +99,34 @@ async function setupEvaluationWorker() {
 
         console.log("output", output);
 
-        await updateSubmission(data.submissionId, "completed", output || {});
+        await updateSubmission(data.submissionId, {
+          status: "FINISHED",
+          verdict: output.verdict,
+          testCaseResults: output.testCaseResults,
+          judgeMeta: {
+            score: output.totalTests
+              ? Number(
+                  ((output.passedTests / output.totalTests) * 100).toFixed(2),
+                )
+              : 0,
+            passedTests: output.passedTests,
+            totalTests: output.totalTests,
+            judgeVersion: "v1",
+            judgedAt: new Date().toISOString(),
+          },
+        });
       } catch (error) {
         logger.error(`Evaluation job failed: ${job}`, error);
+        await updateSubmission(data.submissionId, {
+          status: "INTERNAL_ERROR",
+          verdict: "RE",
+          judgeMeta: {
+            errorMessage:
+              error instanceof Error ? error.message : "Evaluation failed",
+            judgeVersion: "v1",
+            judgedAt: new Date().toISOString(),
+          },
+        });
         return;
       }
     },

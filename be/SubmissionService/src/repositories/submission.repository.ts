@@ -1,18 +1,16 @@
 import {
+  ISubmissionEvaluationUpdate,
   ISubmission,
-  ISubmissionData,
   Submission,
-  SubmissionStatus,
 } from "../models/submission.model";
 
 export interface ISubmissionRepository {
   create(submissionData: Partial<ISubmission>): Promise<ISubmission>;
   findById(id: string): Promise<ISubmission | null>;
   findByProblemId(problemId: string): Promise<ISubmission[]>;
-  updateStatus(
+  updateEvaluation(
     id: string,
-    status: SubmissionStatus,
-    submissionData: ISubmissionData,
+    payload: ISubmissionEvaluationUpdate,
   ): Promise<ISubmission | null>;
   deleteById(id: string): Promise<boolean>;
 }
@@ -31,16 +29,21 @@ export class SubmissionRepository implements ISubmissionRepository {
     return await Submission.find({ problemId });
   }
 
-  async updateStatus(
+  async updateEvaluation(
     id: string,
-    status: SubmissionStatus,
-    submissionData: ISubmissionData,
+    payload: ISubmissionEvaluationUpdate,
   ): Promise<ISubmission | null> {
-    return await Submission.findByIdAndUpdate(
-      id,
-      { status, submissionData },
-      { new: true },
-    );
+    const updatePayload: ISubmissionEvaluationUpdate = {};
+
+    if (payload.status !== undefined) updatePayload.status = payload.status;
+    if (payload.verdict !== undefined) updatePayload.verdict = payload.verdict;
+    if (payload.testCaseResults !== undefined) {
+      updatePayload.testCaseResults = payload.testCaseResults;
+    }
+    if (payload.judgeMeta !== undefined)
+      updatePayload.judgeMeta = payload.judgeMeta;
+
+    return await Submission.findByIdAndUpdate(id, updatePayload, { new: true });
   }
 
   async deleteById(id: string): Promise<boolean> {

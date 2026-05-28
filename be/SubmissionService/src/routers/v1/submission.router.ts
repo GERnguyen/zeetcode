@@ -1,5 +1,6 @@
 import express from "express";
 import { SubmissionFactory } from "../../factories/submission.factory";
+import { authenticateAccessToken } from "../../middlewares/auth.middleware";
 import { validateRequestBody, validateQueryParams } from "../../validators";
 import {
   createSubmissionSchema,
@@ -15,6 +16,7 @@ const submissionController = SubmissionFactory.getSubmissionController();
 // POST /submissions - Create a new submission
 submissionRouter.post(
   "/",
+  authenticateAccessToken,
   validateRequestBody(createSubmissionSchema),
   // wrap async controller so the router handler does not return the controller's Response
   (req, res, next) => {

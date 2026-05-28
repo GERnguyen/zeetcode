@@ -1,4 +1,8 @@
-import { ISubmission, ISubmissionData, SubmissionStatus } from "../models/submission.model";
+import {
+  ISubmission,
+  ISubmissionEvaluationUpdate,
+  SubmissionStatus,
+} from "../models/submission.model";
 import { ISubmissionRepository } from "../repositories/submission.repository";
 import { BadRequestError, NotFoundError } from "../utils/errors/app.error";
 import { getProblemById } from "../apis/problem.api";
@@ -13,8 +17,7 @@ export interface ISubmissionService {
   getSubmissionsByProblemId(problemId: string): Promise<ISubmission[]>;
   updateSubmissionStatus(
     id: string,
-    status: SubmissionStatus,
-    submissionData: ISubmissionData
+    payload: ISubmissionEvaluationUpdate,
   ): Promise<ISubmission | null>;
   deleteSubmissionById(id: string): Promise<boolean>;
 }
@@ -34,6 +37,10 @@ export class SubmissionService implements ISubmissionService {
       throw new BadRequestError("Problem ID is required");
     }
 
+    if (!submissionData.userId) {
+      throw new BadRequestError("User ID is required");
+    }
+
     if (!submissionData.code) {
       throw new BadRequestError("Code is required");
     }
@@ -47,7 +54,14 @@ export class SubmissionService implements ISubmissionService {
     }
 
     // Add the submission to the database
-    const submission = await this.submissionRepository.create(submissionData);
+    const submission = await this.submissionRepository.create({
+      userId: submissionData.userId,
+      problemId: submissionData.problemId,
+      code: submissionData.code,
+      language: submissionData.language,
+      status: SubmissionStatus.QUEUED,
+      verdict: null,
+    });
 
     // Add submission to the processing queue
     const jobId = await addSubmissionJob({
@@ -60,7 +74,9 @@ export class SubmissionService implements ISubmissionService {
       throw new BadRequestError("Failed to add submission to the queue");
     }
 
-    logger.info(`Submission ${submission._id} created and added to the queue with job ID ${jobId}`);
+    logger.info(
+      `Submission ${submission._id} created and added to the queue with job ID ${jobId}`,
+    );
 
     return submission;
   }
@@ -79,10 +95,12 @@ export class SubmissionService implements ISubmissionService {
 
   async updateSubmissionStatus(
     id: string,
-    status: SubmissionStatus,
-    submissionData: ISubmissionData
+    payload: ISubmissionEvaluationUpdate,
   ): Promise<ISubmission | null> {
-    const submission = await this.submissionRepository.updateStatus(id, status, submissionData);
+    const submission = await this.submissionRepository.updateEvaluation(
+      id,
+      payload,
+    );
     if (!submission) {
       throw new NotFoundError(
         `Submission with id ${id} not found, can't update status`,

@@ -263,10 +263,33 @@ export const refreshAuthTokens = async (refreshToken: string) => {
     storedToken.revokedAt ||
     storedToken.expiresAt <= new Date()
   ) {
+    // Possible token reuse or replay: revoke all refresh tokens for this user
+    try {
+      await revokeAllRefreshTokens(decoded.userId);
+    } catch (err) {
+      logger.error(
+        "Failed to revoke all refresh tokens after detected revoked token",
+        {
+          error: err,
+          userId: decoded.userId,
+        },
+      );
+    }
+
     throw new UnauthorizedError("Refresh token has been revoked");
   }
 
   if (storedToken.tokenHash !== hashToken(refreshToken)) {
+    // Token hash mismatch indicates token theft; revoke all tokens for the user
+    try {
+      await revokeAllRefreshTokens(decoded.userId);
+    } catch (err) {
+      logger.error("Failed to revoke all refresh tokens after token mismatch", {
+        error: err,
+        userId: decoded.userId,
+      });
+    }
+
     throw new UnauthorizedError("Refresh token mismatch");
   }
 
