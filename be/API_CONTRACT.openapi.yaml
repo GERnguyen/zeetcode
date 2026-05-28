@@ -787,9 +787,11 @@ components:
           type: array
           items:
             type: string
+        isForBattle:
+          type: boolean
+          default: false
         editorial:
-          type: string
-          nullable: true
+          $ref: "#/components/schemas/ProblemEditorial"
         testcases:
           type: array
           items:
@@ -829,8 +831,11 @@ components:
           type: array
           items:
             type: string
+        isForBattle:
+          type: boolean
+          default: false
         editorial:
-          type: string
+          $ref: "#/components/schemas/ProblemEditorialInput"
         testcases:
           type: array
           minItems: 1
@@ -864,8 +869,10 @@ components:
           type: array
           items:
             type: string
+        isForBattle:
+          type: boolean
         editorial:
-          type: string
+          $ref: "#/components/schemas/ProblemEditorialInput"
         testcases:
           type: array
           minItems: 1
@@ -903,6 +910,23 @@ components:
         data:
           $ref: "#/components/schemas/Problem"
       required: [success, message, data]
+
+    ProblemEditorial:
+      type: object
+      properties:
+        videoLink:
+          type: string
+          format: uri
+          description: YouTube video link for the editorial
+        text:
+          type: string
+          description: Markdown editorial content
+      additionalProperties: false
+
+    ProblemEditorialInput:
+      allOf:
+        - $ref: "#/components/schemas/ProblemEditorial"
+      description: Optional editorial block with at least one field.
 
     ProblemArrayResponse:
       type: object
@@ -950,6 +974,10 @@ components:
       type: string
       enum: [AC, WA, TLE, MLE, RE, CE, PE]
 
+    SubmissionTestCaseStatus:
+      type: string
+      enum: [AC, WA, TLE, MLE, RE, CE, PE, BLOCKED]
+
     SubmissionLanguage:
       type: string
       enum: [python, cpp]
@@ -974,6 +1002,11 @@ components:
           minimum: 0
         errorMessage:
           type: string
+        rawErrorOutput:
+          type: string
+        errorStage:
+          type: string
+          enum: [compile, runtime]
         judgeVersion:
           type: string
         judgedAt:
@@ -1002,7 +1035,7 @@ components:
         testCaseResults:
           type: object
           additionalProperties:
-            type: string
+            $ref: "#/components/schemas/SubmissionTestCaseStatus"
         judgeMeta:
           $ref: "#/components/schemas/SubmissionJudgeMeta"
         createdAt:
@@ -1047,7 +1080,7 @@ components:
         testCaseResults:
           type: object
           additionalProperties:
-            type: string
+            $ref: "#/components/schemas/SubmissionTestCaseStatus"
         judgeMeta:
           $ref: "#/components/schemas/SubmissionJudgeMeta"
       anyOf:

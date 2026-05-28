@@ -14,6 +14,8 @@ export type SubmissionUpdatePayload = {
     runtimeMs?: number;
     memoryKb?: number;
     errorMessage?: string;
+    rawErrorOutput?: string;
+    errorStage?: "compile" | "runtime";
     judgeVersion?: string;
     judgedAt?: string;
   };

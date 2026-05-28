@@ -11,44 +11,70 @@ import { runCode } from "../utils/containers/codeRunner.util";
 import { LANGUAGE_CONFIG } from "../config/language.config";
 import { updateSubmission } from "../api/submission.api";
 
-function matchTestCasesWithResults(
+type TestCaseResultStatus = "AC" | "WA" | "TLE" | "RE" | "CE" | "BLOCKED";
+
+async function evaluateTestCasesSequentially(
+  code: string,
+  language: EvaluationJob["language"],
   testCases: TestCase[],
-  results: EvaluationResult[],
 ) {
-  const testCaseResults: Record<string, string> = {};
+  const testCaseResults: Record<string, TestCaseResultStatus> = {};
   const totalTests = testCases.length;
   let passedTests = 0;
+  let runtimeMs = 0;
+  let verdict: "AC" | "WA" | "TLE" | "RE" | "CE" = "AC";
+  let rawErrorOutput: string | undefined;
+  let errorStage: "compile" | "runtime" | undefined;
 
-  if (results.length !== testCases.length) {
-    return {
-      verdict: "WA" as const,
-      testCaseResults,
-      passedTests: 0,
-      totalTests,
-    };
-  }
+  for (let index = 0; index < testCases.length; index += 1) {
+    const testCase = testCases[index];
 
-  testCases.forEach((testCase, index) => {
-    let caseVerdict = "WA";
-    if (results[index].status === "Time Limit Exceeded") {
-      caseVerdict = "TLE";
-    } else if (results[index].status === "failed") {
-      caseVerdict = "RE";
-    } else if (results[index].output === testCase.output) {
-      caseVerdict = "AC";
-      passedTests += 1;
+    const result: EvaluationResult = await runCode({
+      code,
+      language,
+      timeout: LANGUAGE_CONFIG[language].timeout,
+      imageName: LANGUAGE_CONFIG[language].imageName,
+      input: testCase.input,
+    });
+    runtimeMs += result.runtimeMs;
+
+    if (result.status === "success") {
+      if (result.output === testCase.output) {
+        testCaseResults[testCase._id] = "AC";
+        passedTests += 1;
+      } else {
+        testCaseResults[testCase._id] = "WA";
+        verdict = "WA";
+      }
+      continue;
     }
 
-    testCaseResults[testCase._id] = caseVerdict;
-  });
+    if (result.status === "Time Limit Exceeded") {
+      testCaseResults[testCase._id] = "TLE";
+      verdict = "TLE";
+      for (
+        let blockedIndex = index + 1;
+        blockedIndex < testCases.length;
+        blockedIndex += 1
+      ) {
+        testCaseResults[testCases[blockedIndex]._id] = "BLOCKED";
+      }
+      break;
+    }
 
-  let verdict: "AC" | "WA" | "TLE" | "RE" = "AC";
-  if (Object.values(testCaseResults).includes("RE")) {
-    verdict = "RE";
-  } else if (Object.values(testCaseResults).includes("TLE")) {
-    verdict = "TLE";
-  } else if (Object.values(testCaseResults).includes("WA")) {
-    verdict = "WA";
+    errorStage = result.errorStage ?? "runtime";
+    rawErrorOutput = result.output;
+    verdict = errorStage === "compile" ? "CE" : "RE";
+    testCaseResults[testCase._id] = verdict;
+
+    for (
+      let blockedIndex = index + 1;
+      blockedIndex < testCases.length;
+      blockedIndex += 1
+    ) {
+      testCaseResults[testCases[blockedIndex]._id] = "BLOCKED";
+    }
+    break;
   }
 
   return {
@@ -56,6 +82,9 @@ function matchTestCasesWithResults(
     testCaseResults,
     passedTests,
     totalTests,
+    runtimeMs,
+    rawErrorOutput,
+    errorStage,
   };
 }
 
@@ -74,27 +103,10 @@ async function setupEvaluationWorker() {
           status: "RUNNING",
         });
 
-        const testCasesRunnerPromise = data.problem.testcases.map(
-          (testcase) => {
-            return runCode({
-              code: data.code,
-              language: data.language,
-              timeout: LANGUAGE_CONFIG[data.language].timeout,
-              imageName: LANGUAGE_CONFIG[data.language].imageName,
-              input: testcase.input,
-            });
-          },
-        );
-
-        const testCasesRunnerResults: EvaluationResult[] = await Promise.all(
-          testCasesRunnerPromise,
-        );
-
-        console.log("testCasesRunnerResults", testCasesRunnerResults);
-
-        const output = matchTestCasesWithResults(
+        const output = await evaluateTestCasesSequentially(
+          data.code,
+          data.language,
           data.problem.testcases,
-          testCasesRunnerResults,
         );
 
         console.log("output", output);
@@ -111,6 +123,9 @@ async function setupEvaluationWorker() {
               : 0,
             passedTests: output.passedTests,
             totalTests: output.totalTests,
+            runtimeMs: output.runtimeMs,
+            rawErrorOutput: output.rawErrorOutput,
+            errorStage: output.errorStage,
             judgeVersion: "v1",
             judgedAt: new Date().toISOString(),
           },
@@ -123,6 +138,10 @@ async function setupEvaluationWorker() {
           judgeMeta: {
             errorMessage:
               error instanceof Error ? error.message : "Evaluation failed",
+            rawErrorOutput:
+              error instanceof Error
+                ? (error.stack ?? error.message)
+                : "Evaluation failed",
             judgeVersion: "v1",
             judgedAt: new Date().toISOString(),
           },

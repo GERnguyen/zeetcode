@@ -17,6 +17,17 @@ export enum SubmissionVerdict {
   PE = "PE",
 }
 
+export enum SubmissionTestCaseStatus {
+  AC = "AC",
+  WA = "WA",
+  TLE = "TLE",
+  MLE = "MLE",
+  RE = "RE",
+  CE = "CE",
+  PE = "PE",
+  BLOCKED = "BLOCKED",
+}
+
 export enum SubmissionLanguage {
   PYTHON = "python",
   CPP = "cpp",
@@ -34,6 +45,8 @@ export interface ISubmissionJudgeMeta {
   runtimeMs?: number;
   memoryKb?: number;
   errorMessage?: string;
+  rawErrorOutput?: string;
+  errorStage?: "compile" | "runtime";
   judgeVersion?: string;
   judgedAt?: Date;
 }
@@ -41,7 +54,7 @@ export interface ISubmissionJudgeMeta {
 export interface ISubmissionEvaluationUpdate {
   status?: SubmissionStatus;
   verdict?: SubmissionVerdict | null;
-  testCaseResults?: Record<string, string>;
+  testCaseResults?: Record<string, SubmissionTestCaseStatus>;
   judgeMeta?: ISubmissionJudgeMeta;
 }
 
@@ -52,7 +65,7 @@ export interface ISubmission extends Document {
   language: SubmissionLanguage;
   status: SubmissionStatus;
   verdict: SubmissionVerdict | null;
-  testCaseResults?: Record<string, string>;
+  testCaseResults?: Record<string, SubmissionTestCaseStatus>;
   judgeMeta?: ISubmissionJudgeMeta;
   createdAt: Date;
   updatedAt: Date;
@@ -91,6 +104,12 @@ const submissionSchema = new mongoose.Schema<ISubmission>(
       runtimeMs: { type: Number, default: undefined },
       memoryKb: { type: Number, default: undefined },
       errorMessage: { type: String, default: undefined },
+      rawErrorOutput: { type: String, default: undefined },
+      errorStage: {
+        type: String,
+        enum: ["compile", "runtime"],
+        default: undefined,
+      },
       judgeVersion: { type: String, default: undefined },
       judgedAt: { type: Date, default: undefined },
     },

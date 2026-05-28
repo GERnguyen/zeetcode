@@ -5,15 +5,21 @@ export interface ITestCase {
   output: string;
 }
 
+export interface IProblemEditorial {
+  videoLink?: string;
+  text?: string;
+}
+
 export interface IProblem extends Document {
   title: string;
   description: string;
   difficulty: "easy" | "medium" | "hard";
   category: string;
   tags: string[];
+  isForBattle: boolean;
   createdAt: Date;
   updatedAt: Date;
-  editorial?: string;
+  editorial?: IProblemEditorial;
   testcases: ITestCase[];
 }
 
@@ -55,7 +61,15 @@ const ProblemSchema = new mongoose.Schema<IProblem>(
     },
     category: { type: String, required: [true, "Category is required"] },
     tags: [{ type: String }],
-    editorial: { type: String, trim: true },
+    isForBattle: {
+      type: Boolean,
+      default: false,
+      required: true,
+    },
+    editorial: {
+      videoLink: { type: String, trim: true },
+      text: { type: String, trim: true },
+    },
     testcases: [TestSchema],
   },
   {
@@ -74,6 +88,7 @@ const ProblemSchema = new mongoose.Schema<IProblem>(
 
 ProblemSchema.index({ title: 1 }, { unique: true });
 ProblemSchema.index({ difficulty: 1 });
+ProblemSchema.index({ isForBattle: 1 });
 
 const Problem = mongoose.model<IProblem>("Problem", ProblemSchema);
 

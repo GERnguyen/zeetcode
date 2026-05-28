@@ -3,6 +3,14 @@ import { commands } from "./commands.util";
 import { createNewDockerContainer } from "./createContainer.util";
 
 const allowListedLanguage = ["python", "cpp"];
+const stageMarkerPrefix = "__JUDGE_STAGE__:";
+
+export interface RunCodeResult {
+  status: "success" | "Time Limit Exceeded" | "failed";
+  output: string;
+  runtimeMs: number;
+  errorStage?: "compile" | "runtime";
+}
 
 export interface RunCodeOptions {
   code: string;
@@ -12,7 +20,7 @@ export interface RunCodeOptions {
   input: string;
 }
 
-export async function runCode(options: RunCodeOptions) {
+export async function runCode(options: RunCodeOptions): Promise<RunCodeResult> {
   const { code, language, timeout, imageName, input } = options;
 
   if (!allowListedLanguage.includes(language)) {
@@ -26,6 +34,7 @@ export async function runCode(options: RunCodeOptions) {
   });
 
   let isTimeLimitExceeded = false;
+  const startedAt = Date.now();
 
   const timeLimitExceededTimeout = setTimeout(() => {
     console.log("Time limit exceeded");
@@ -40,10 +49,12 @@ export async function runCode(options: RunCodeOptions) {
   const status = await container?.wait();
 
   if (isTimeLimitExceeded) {
+    const runtimeMs = Date.now() - startedAt;
     await container?.remove();
     return {
       status: "Time Limit Exceeded",
       output: "Time Limit Exceeded",
+      runtimeMs,
     };
   }
 
@@ -53,7 +64,8 @@ export async function runCode(options: RunCodeOptions) {
   });
 
   const containerLogs = processLogs(logs);
-
+  const errorStage = determineErrorStage(containerLogs);
+  const runtimeMs = Date.now() - startedAt;
 
   await container?.remove();
 
@@ -64,20 +76,33 @@ export async function runCode(options: RunCodeOptions) {
     return {
       status: "success",
       output: containerLogs,
-    }
+      runtimeMs,
+    };
   } else {
     console.log("Container exited with error");
     return {
       status: "failed",
       output: containerLogs,
-    }
+      runtimeMs,
+      errorStage,
+    };
   }
 }
 
 function processLogs(logs: Buffer | undefined) {
-  return logs
-    ?.toString("utf8")
+  const normalizedLogs = logs?.toString("utf8") ?? "";
+
+  return normalizedLogs
     .replace(/\x00/g, "") // Remove null bytes
     .replace(/[\x00-\x09\x0B-\x1F\x7F-\x9F]/g, "") // Remove control characters except \n (0x0A)
+    .split("\n")
+    .filter((line) => !line.startsWith(stageMarkerPrefix))
+    .join("\n")
     .trim();
+}
+
+function determineErrorStage(logs: string) {
+  return logs.includes(`${stageMarkerPrefix}run`)
+    ? ("runtime" as const)
+    : ("compile" as const);
 }

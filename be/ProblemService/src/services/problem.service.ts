@@ -29,11 +29,19 @@ export class ProblemService implements IProblemService {
   }
 
   async createProblem(problem: CreateProblemDto): Promise<IProblem> {
+    const sanitizedEditorial = problem.editorial
+      ? {
+          ...problem.editorial,
+          text: problem.editorial.text
+            ? await sanitizeMarkdown(problem.editorial.text)
+            : undefined,
+        }
+      : undefined;
+
     const sanitizedPayload = {
       ...problem,
       description: await sanitizeMarkdown(problem.description),
-      editorial:
-        problem.editorial && (await sanitizeMarkdown(problem.editorial)),
+      editorial: sanitizedEditorial,
     };
     return await this.problemRepository.createProblem(sanitizedPayload);
   }
@@ -80,7 +88,12 @@ export class ProblemService implements IProblemService {
       );
     }
     if (updateData.editorial) {
-      sanitizedPayload.editorial = await sanitizeMarkdown(updateData.editorial);
+      sanitizedPayload.editorial = {
+        ...updateData.editorial,
+        text: updateData.editorial.text
+          ? await sanitizeMarkdown(updateData.editorial.text)
+          : undefined,
+      };
     }
 
     return await this.problemRepository.updateProblem(id, sanitizedPayload);

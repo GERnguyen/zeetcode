@@ -3,6 +3,7 @@ import {
   SubmissionLanguage,
   SubmissionStatus,
   SubmissionVerdict,
+  SubmissionTestCaseStatus,
 } from "../models/submission.model";
 
 // Schema for creating a new submission
@@ -19,7 +20,9 @@ export const updateSubmissionStatusSchema = z
   .object({
     status: z.nativeEnum(SubmissionStatus).optional(),
     verdict: z.nativeEnum(SubmissionVerdict).nullable().optional(),
-    testCaseResults: z.record(z.string()).optional(),
+    testCaseResults: z
+      .record(z.nativeEnum(SubmissionTestCaseStatus))
+      .optional(),
     judgeMeta: z
       .object({
         score: z.number().min(0).optional(),
@@ -28,6 +31,8 @@ export const updateSubmissionStatusSchema = z
         runtimeMs: z.number().min(0).optional(),
         memoryKb: z.number().min(0).optional(),
         errorMessage: z.string().min(1).optional(),
+        rawErrorOutput: z.string().optional(),
+        errorStage: z.enum(["compile", "runtime"]).optional(),
         judgeVersion: z.string().min(1).optional(),
         judgedAt: z.coerce.date().optional(),
       })

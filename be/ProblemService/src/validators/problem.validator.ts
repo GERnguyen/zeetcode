@@ -1,5 +1,24 @@
 import { z } from "zod";
 
+const youtubeUrlSchema = z
+  .string()
+  .url("Video link must be a valid URL")
+  .refine(
+    (value) => /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(value),
+    {
+      message: "Video link must be a YouTube URL",
+    },
+  );
+
+const editorialSchema = z
+  .object({
+    videoLink: youtubeUrlSchema.optional(),
+    text: z.string().optional(),
+  })
+  .refine((data) => Boolean(data.videoLink || data.text), {
+    message: "Editorial must include at least videoLink or text",
+  });
+
 export const CreateProblemSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
@@ -9,7 +28,8 @@ export const CreateProblemSchema = z.object({
     }),
   }),
   tags: z.array(z.string()).optional(),
-  editorial: z.string().optional(),
+  isForBattle: z.boolean().default(false),
+  editorial: editorialSchema.optional(),
   category: z.string().min(1, "Category is required"),
   testcases: z
     .array(
@@ -32,7 +52,8 @@ export const UpdateProblemSchema = z.object({
     })
     .optional(),
   tags: z.array(z.string()).optional(),
-  editorial: z.string().optional(),
+  isForBattle: z.boolean().optional(),
+  editorial: editorialSchema.optional(),
   category: z.string().min(1, "Category is required").optional(),
   testcases: z
     .array(
