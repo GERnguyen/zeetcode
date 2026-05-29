@@ -15,6 +15,7 @@ export interface IProblemDetails {
   difficulty: "easy" | "medium" | "hard";
   category: string;
   tags: string[];
+  isForBattle?: boolean;
   createdAt: Date;
   updatedAt: Date;
   editorial?: string;
@@ -38,7 +39,12 @@ export async function getProblemById(
 ): Promise<IProblemDetails | null> {
   try {
     const response: AxiosResponse<IProblemResponse> = await axios.get(
-      `${serverConfig.PROBLEM_SERVICE_URL}/problems/${problemId}`,
+      `${serverConfig.PROBLEM_SERVICE_URL}/problems/${problemId}/judge`,
+      {
+        headers: {
+          "x-service-token": serverConfig.PROBLEM_SERVICE_TOKEN,
+        },
+      },
     );
     if (response.data.success) {
       return response.data.data as IProblemDetails;

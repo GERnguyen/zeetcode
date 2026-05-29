@@ -55,6 +55,28 @@ const emitToRoom = (roomId: string, event: string, payload: unknown) => {
   io?.to(roomId).emit(event, payload);
 };
 
+const emitToUser = (userId: string, event: string, payload: unknown) => {
+  const sockets = userSockets.get(userId);
+  if (!sockets || !io) return;
+  sockets.forEach((socketId) => {
+    io?.to(socketId).emit(event, payload);
+  });
+};
+
+const emitToRoomExceptUser = (
+  roomId: string,
+  userId: string,
+  event: string,
+  payload: unknown,
+) => {
+  const sockets = Array.from(userSockets.get(userId) || []);
+  if (sockets.length === 0) {
+    emitToRoom(roomId, event, payload);
+    return;
+  }
+  io?.to(roomId).except(sockets).emit(event, payload);
+};
+
 const stopRoomTimer = (roomId: string) => {
   const timer = roomTimers.get(roomId);
   if (timer) {
@@ -112,7 +134,7 @@ const pollSubmissionVerdict = async (
     return;
   }
 
-  if (submission.status !== "FINISHED") {
+  if (submission.status !== "FINISHED" && submission.status !== "INTERNAL_ERROR") {
     setTimeout(() => {
       pollSubmissionVerdict(battleService, roomId, userId, submissionId).catch(
         (error) => logger.error("Polling submission failed", error),
@@ -129,14 +151,14 @@ const pollSubmissionVerdict = async (
     submissionId,
   );
 
-  emitToRoom(roomId, "battle:opponent-verdict", {
+  emitToRoomExceptUser(roomId, userId, "battle:opponent-verdict", {
     roomId,
     userId,
     verdict: submission.verdict,
     runtimeMs: submission.judgeMeta?.runtimeMs,
   });
 
-  emitToRoom(roomId, "battle:verdict", {
+  emitToUser(userId, "battle:verdict", {
     roomId,
     userId,
     verdict: submission.verdict,
@@ -315,7 +337,7 @@ export const initBattleSocket = (
           new Date(),
         );
 
-        emitToRoom(room.id, "battle:opponent-submitted", {
+        emitToRoomExceptUser(room.id, userData.userId, "battle:opponent-submitted", {
           roomId: room.id,
           userId: userData.userId,
         });
@@ -341,14 +363,11 @@ export const initBattleSocket = (
       );
 
       if (result.shouldFinalize) {
-        const finishedRoom = await battleService.finalizeRoom(
-          payload.roomId,
-          result.forcedWinnerUserId,
-        );
+        const finishedRoom = await battleService.finalizeRoom(payload.roomId);
         stopRoomTimer(payload.roomId);
         emitToRoom(payload.roomId, "battle:result", finishedRoom);
       } else {
-        emitToRoom(payload.roomId, "battle:opponent-left", {
+        emitToRoomExceptUser(payload.roomId, userData.userId, "battle:opponent-left", {
           roomId: payload.roomId,
           userId: userData.userId,
         });
@@ -360,6 +379,8 @@ export const initBattleSocket = (
 
     socket.on("disconnect", async () => {
       unregisterUserSocket(userData.userId, socket.id);
+      if (userSockets.has(userData.userId)) return;
+
       const roomId = userCurrentRoom.get(userData.userId);
       if (!roomId) return;
       try {
@@ -368,14 +389,11 @@ export const initBattleSocket = (
           userData.userId,
         );
         if (result.shouldFinalize) {
-          const finishedRoom = await battleService.finalizeRoom(
-            roomId,
-            result.forcedWinnerUserId,
-          );
+          const finishedRoom = await battleService.finalizeRoom(roomId);
           stopRoomTimer(roomId);
           emitToRoom(roomId, "battle:result", finishedRoom);
         } else {
-          emitToRoom(roomId, "battle:opponent-left", {
+          emitToRoomExceptUser(roomId, userData.userId, "battle:opponent-left", {
             roomId,
             userId: userData.userId,
           });

@@ -28,7 +28,11 @@ export async function updateSubmission(
   try {
     const url = `${serverConfig.SUBMISSION_SERVICE_URL}/submissions/${submissionId}/status`;
     logger.info("Updating submission status", { url });
-    const response = await axios.patch(url, payload);
+    const response = await axios.patch(url, payload, {
+      headers: {
+        "x-service-token": serverConfig.SUBMISSION_SERVICE_TOKEN,
+      },
+    });
 
     if (response.status !== 200) {
       throw new InternalServerError("Failed to update submission");

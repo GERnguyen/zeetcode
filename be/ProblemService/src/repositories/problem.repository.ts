@@ -1,8 +1,12 @@
 import Problem, { IProblem } from "../models/problem.model";
+import { ProblemListQueryDto } from "../validators/problem.validator";
 
 export interface IProblemRepository {
   createProblem(problem: Partial<IProblem>): Promise<IProblem>;
   getAllProblems(): Promise<{ problems: IProblem[]; total: number }>;
+  listProblems(
+    query: ProblemListQueryDto,
+  ): Promise<{ problems: Partial<IProblem>[]; total: number; stats: Record<string, number> }>;
   getProblemById(id: string): Promise<IProblem | null>;
   getProblemsByIds(ids: string[]): Promise<IProblem[]>;
   updateProblem(
@@ -32,6 +36,48 @@ export class ProblemRepository implements IProblemRepository {
     const problems = await Problem.find().sort({ createdAt: -1 });
     const total = await Problem.countDocuments();
     return { problems, total };
+  }
+
+  async listProblems(query: ProblemListQueryDto): Promise<{
+    problems: Partial<IProblem>[];
+    total: number;
+    stats: Record<string, number>;
+  }> {
+    const filter: Record<string, unknown> = {};
+    if (query.practice) filter.isForBattle = false;
+    if (query.difficulty) filter.difficulty = query.difficulty;
+    if (query.tag) filter.tags = query.tag;
+    if (query.search) {
+      const regex = new RegExp(query.search, "i");
+      filter.$or = [{ title: regex }, { tags: regex }, { category: regex }];
+    }
+
+    const sort: Record<string, 1 | -1> = {
+      [query.sort]: query.order === "asc" ? 1 : -1,
+    };
+    const skip = (query.page - 1) * query.limit;
+
+    const [problems, total, groupedStats] = await Promise.all([
+      Problem.find(filter)
+        .select("title difficulty category tags isForBattle")
+        .sort(sort)
+        .skip(skip)
+        .limit(query.limit),
+      Problem.countDocuments(filter),
+      Problem.aggregate([
+        { $match: query.practice ? { isForBattle: false } : {} },
+        { $group: { _id: "$difficulty", total: { $sum: 1 } } },
+      ]),
+    ]);
+
+    const stats = { easy: 0, medium: 0, hard: 0 };
+    for (const item of groupedStats) {
+      if (item._id in stats) {
+        stats[item._id as keyof typeof stats] = item.total;
+      }
+    }
+
+    return { problems, total, stats };
   }
 
   async updateProblem(

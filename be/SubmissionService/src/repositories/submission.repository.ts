@@ -9,6 +9,7 @@ export interface ISubmissionRepository {
   create(submissionData: Partial<ISubmission>): Promise<ISubmission>;
   findById(id: string): Promise<ISubmission | null>;
   findByProblemId(problemId: string): Promise<ISubmission[]>;
+  findByUserAndProblem(userId: string, problemId: string): Promise<ISubmission[]>;
   findAcceptedProblemIdsByUserId(userId: string): Promise<string[]>;
   updateEvaluation(
     id: string,
@@ -31,10 +32,20 @@ export class SubmissionRepository implements ISubmissionRepository {
     return await Submission.find({ problemId });
   }
 
+  async findByUserAndProblem(
+    userId: string,
+    problemId: string,
+  ): Promise<ISubmission[]> {
+    return await Submission.find({ userId, problemId })
+      .sort({ createdAt: -1 })
+      .limit(100);
+  }
+
   async findAcceptedProblemIdsByUserId(userId: string): Promise<string[]> {
     return await Submission.distinct("problemId", {
       userId,
       verdict: SubmissionVerdict.AC,
+      isPracticeRun: { $ne: true },
     });
   }
 

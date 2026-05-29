@@ -68,6 +68,26 @@ export class SubmissionController {
     });
   };
 
+  runSampleTests = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user?.id;
+
+    const submission = await this.submissionService.runSampleTests({
+      ...req.body,
+      userId,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Sample run created successfully",
+      data: submission,
+    });
+  };
+
   getSubmissionsByProblemId = async (
     req: Request,
     res: Response,
@@ -83,6 +103,28 @@ export class SubmissionController {
       problemId,
       count: submissions.length,
     });
+
+    res.status(200).json({
+      success: true,
+      message: "Submissions fetched successfully",
+      data: submissions,
+    });
+  };
+
+  getMySubmissionsByProblemId = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user?.id || "";
+    const { problemId } = req.params;
+
+    const submissions =
+      await this.submissionService.getMySubmissionsByProblemId(
+        userId,
+        problemId,
+      );
 
     res.status(200).json({
       success: true,

@@ -300,6 +300,10 @@ export class BattleService {
       throw new NotFoundError("Battle room not found");
     }
 
+    if (room.status === "FINISHED" || room.status === "CANCELED") {
+      return { room, shouldFinalize: false };
+    }
+
     const player = room.players.find((item) => item.userId === userId);
     if (!player) {
       throw new BadRequestError("Player not found in room");
@@ -310,22 +314,10 @@ export class BattleService {
 
     await room.save();
 
-    const hasAC = typeof player.bestRuntimeMs === "number";
-    const opponent = room.players.find((item) => item.userId !== userId);
+    const shouldFinalize =
+      room.players.length > 0 && room.players.every((item) => item.hasLeft);
 
-    if (!opponent) {
-      return { room, shouldFinalize: true, forcedWinnerUserId: null };
-    }
-
-    if (!hasAC) {
-      return {
-        room,
-        shouldFinalize: true,
-        forcedWinnerUserId: opponent.userId,
-      };
-    }
-
-    return { room, shouldFinalize: false, forcedWinnerUserId: null };
+    return { room, shouldFinalize };
   }
 
   async finalizeRoom(roomId: string, forcedWinnerUserId?: string | null) {

@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: LeetCode Clone Backend API Contract
   version: 1.0.0
-  summary: Consolidated API contract for ProblemService, SubmissionService, EvaluationService, and UserService.
+  summary: Consolidated API contract for ProblemService, SubmissionService, EvaluationService, UserService, and BattleService.
   description: |
     This contract is generated from current implementation in the backend services.
 
@@ -18,6 +18,11 @@ info:
     - SubmissionService routes are exposed under /submission-service/api/v1/...
     - EvaluationService routes are exposed under /evaluation-service/api/v1/...
     - UserService routes are exposed under /user-service/api/v1/...
+    - BattleService routes are exposed under /battle-service/api/v1/...
+
+    Socket transport:
+    - BattleService uses Socket.IO for realtime battle flows. This is documented
+      under the vendor extension x-socket-io because it is not HTTP-based.
 
     Notes:
     - This file is intended for FE development and API tracking.
@@ -43,6 +48,40 @@ tags:
   - name: UserService.User
   - name: BattleService
   - name: Health
+
+x-socket-io:
+  battle-service:
+    auth:
+      description: JWT access token is required in socket handshake.
+      handshake:
+        - auth.token = "Bearer <ACCESS_TOKEN>"
+        - OR header "Authorization: Bearer <ACCESS_TOKEN>"
+    clientToServerEvents:
+      - ranked:enqueue
+      - ranked:dequeue
+      - private:create
+      - private:join
+      - private:start
+      - room:join
+      - room:submit
+      - room:leave
+    serverToClientEvents:
+      - battle:ranked-queued
+      - battle:ranked-dequeued
+      - battle:private-created
+      - battle:private-joined
+      - battle:player-joined
+      - battle:room-started
+      - battle:room-joined
+      - battle:submitted
+      - battle:opponent-submitted
+      - battle:verdict
+      - battle:opponent-verdict
+      - battle:timer
+      - battle:match-found
+      - battle:opponent-left
+      - battle:result
+      - battle:error
 
 paths:
   /problem-service/api/v1/ping:

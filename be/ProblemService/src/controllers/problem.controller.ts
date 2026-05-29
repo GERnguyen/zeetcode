@@ -1,6 +1,8 @@
 import { ProblemService } from "../services/problem.service";
 import { ProblemRepository } from "../repositories/problem.repository";
 import { Request, Response } from "express";
+import { serverConfig } from "../config";
+import { ProblemListQuerySchema } from "../validators/problem.validator";
 
 
 const problemRepository = new ProblemRepository();
@@ -26,6 +28,28 @@ export const ProblemController = {
   },
 
   async getProblemById(req: Request, res: Response): Promise<void> {
+      const problem = await problemService.getPublicProblemById(req.params.id);
+
+      res.status(200).json({
+        message: "Problem retrieved successfully",
+        success: true,
+        data: problem,
+      });
+  },
+
+  async getJudgeProblemById(req: Request, res: Response): Promise<void> {
+      const token = req.headers["x-service-token"];
+      if (
+        !serverConfig.INTERNAL_SERVICE_TOKEN ||
+        token !== serverConfig.INTERNAL_SERVICE_TOKEN
+      ) {
+        res.status(401).json({
+          message: "Invalid service token",
+          success: false,
+        });
+        return;
+      }
+
       const problem = await problemService.getProblemById(req.params.id);
 
       res.status(200).json({
@@ -47,14 +71,38 @@ export const ProblemController = {
     },
 
     async getAllProblems(req: Request, res: Response): Promise<void> {
-        const { problems, total } = await problemService.getAllProblems();
+        const query = req.query as any;
+        if (
+            query.practice !== undefined ||
+            query.search !== undefined ||
+            query.difficulty !== undefined ||
+            query.tag !== undefined ||
+            query.sort !== undefined ||
+            query.page !== undefined ||
+            query.limit !== undefined
+        ) {
+            const data = await problemService.listProblems(
+                ProblemListQuerySchema.parse(query),
+            );
+            res.status(200).json({
+                message: "Problems retrieved successfully",
+                success: true,
+                data,
+            });
+            return;
+        }
+
+        const data = await problemService.listProblems({
+            practice: false,
+            sort: "title",
+            order: "asc",
+            page: 1,
+            limit: 100,
+        });
         res.status(200).json({
             message: "Problems retrieved successfully",
             success: true,
-            data: {
-                problems,
-                total,
-            },
+            data,
         });
     },
 

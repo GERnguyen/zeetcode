@@ -1,6 +1,9 @@
 import express from "express";
 import { SubmissionFactory } from "../../factories/submission.factory";
-import { authenticateAccessToken } from "../../middlewares/auth.middleware";
+import {
+  authenticateAccessToken,
+  authenticateServiceToken,
+} from "../../middlewares/auth.middleware";
 import { validateRequestBody, validateRequestParams } from "../../validators";
 import {
   createSubmissionSchema,
@@ -26,11 +29,27 @@ submissionRouter.post(
   },
 );
 
+submissionRouter.post(
+  "/run-samples",
+  authenticateAccessToken,
+  validateRequestBody(createSubmissionSchema),
+  (req, res, next) => {
+    submissionController.runSampleTests(req, res, next).catch(next);
+  },
+);
+
 // GET /submissions/me/accepted-problems - Get all accepted problems for current user
 submissionRouter.get(
   "/me/accepted-problems",
   authenticateAccessToken,
   submissionController.getMyAcceptedProblems,
+);
+
+submissionRouter.get(
+  "/me/problem/:problemId",
+  authenticateAccessToken,
+  validateRequestParams(submissionProblemParamsSchema),
+  submissionController.getMySubmissionsByProblemId,
 );
 
 // GET /submissions/:id - Get submission by ID
@@ -49,6 +68,7 @@ submissionRouter.delete("/:id", submissionController.deleteSubmissionById);
 // PATCH /submissions/:id/status - Update submission status
 submissionRouter.patch(
   "/:id/status",
+  authenticateServiceToken,
   validateRequestBody(updateSubmissionStatusSchema),
   submissionController.updateSubmissionStatus,
 );

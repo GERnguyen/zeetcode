@@ -32,6 +32,8 @@ problemRouter.get(
   ProblemController.findByDifficulty,
 );
 
+problemRouter.get("/:id/judge", ProblemController.getJudgeProblemById);
+
 problemRouter.get("/:id", ProblemController.getProblemById);
 
 problemRouter.put(

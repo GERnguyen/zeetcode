@@ -51,3 +51,24 @@ export const authenticateAccessToken = (
 
   next();
 };
+
+export const authenticateServiceToken = (
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+) => {
+  const token = req.headers["x-service-token"];
+  if (!token || typeof token !== "string") {
+    throw new UnauthorizedError("Service token required");
+  }
+
+  if (!serverConfig.INTERNAL_SERVICE_TOKEN) {
+    throw new UnauthorizedError("Service token is not configured");
+  }
+
+  if (token !== serverConfig.INTERNAL_SERVICE_TOKEN) {
+    throw new UnauthorizedError("Invalid service token");
+  }
+
+  next();
+};

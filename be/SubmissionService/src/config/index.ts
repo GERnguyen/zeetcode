@@ -5,7 +5,9 @@ type ServerConfig = {
   PORT: number;
   DB_URL: string;
   PROBLEM_SERVICE_URL: string;
+  PROBLEM_SERVICE_TOKEN: string;
   JWT_ACCESS_SECRET: string;
+  INTERNAL_SERVICE_TOKEN: string;
   REDIS_HOST: string;
   REDIS_PORT: number;
 };
@@ -22,7 +24,9 @@ export const serverConfig: ServerConfig = {
   DB_URL: process.env.DB_URL || "",
   PROBLEM_SERVICE_URL:
     process.env.PROBLEM_SERVICE_URL || "http://localhost:3000/api/v1",
+  PROBLEM_SERVICE_TOKEN: process.env.PROBLEM_SERVICE_TOKEN || "",
   JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || "",
+  INTERNAL_SERVICE_TOKEN: process.env.INTERNAL_SERVICE_TOKEN || "",
   REDIS_HOST: process.env.REDIS_HOST || "localhost",
   REDIS_PORT: Number(process.env.REDIS_PORT) || 6379,
 };

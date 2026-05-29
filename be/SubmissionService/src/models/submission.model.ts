@@ -63,6 +63,7 @@ export interface ISubmission extends Document {
   problemId: string;
   code: string;
   language: SubmissionLanguage;
+  isPracticeRun?: boolean;
   status: SubmissionStatus;
   verdict: SubmissionVerdict | null;
   testCaseResults?: Record<string, SubmissionTestCaseStatus>;
@@ -81,6 +82,7 @@ const submissionSchema = new mongoose.Schema<ISubmission>(
       required: [true, "Language is required"],
       enum: Object.values(SubmissionLanguage),
     },
+    isPracticeRun: { type: Boolean, default: false },
     status: {
       type: String,
       required: true,

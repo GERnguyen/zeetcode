@@ -6,6 +6,7 @@ type ServerConfig = {
   DB_URL: string;
   PROBLEM_SERVICE_URL: string;
   SUBMISSION_SERVICE_URL: string;
+  SUBMISSION_SERVICE_TOKEN: string;
   REDIS_HOST: string;
   REDIS_PORT: number;
 };
@@ -24,6 +25,7 @@ export const serverConfig: ServerConfig = {
     process.env.PROBLEM_SERVICE_URL || "http://localhost:3000/api/v1",
   SUBMISSION_SERVICE_URL:
     process.env.SUBMISSION_SERVICE_URL || "http://localhost:3001/api/v1",
+  SUBMISSION_SERVICE_TOKEN: process.env.SUBMISSION_SERVICE_TOKEN || "",
   REDIS_HOST: process.env.REDIS_HOST || "localhost",
   REDIS_PORT: Number(process.env.REDIS_PORT) || 6379,
 };

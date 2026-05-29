@@ -19,6 +19,11 @@ export interface ISubmissionService {
   ): Promise<ISubmission | null>;
   getSubmissionById(id: string): Promise<ISubmission | null>;
   getSubmissionsByProblemId(problemId: string): Promise<ISubmission[]>;
+  getMySubmissionsByProblemId(
+    userId: string,
+    problemId: string,
+  ): Promise<ISubmission[]>;
+  runSampleTests(submissionData: Partial<ISubmission>): Promise<ISubmission | null>;
   getAcceptedProblemsByUserId(userId: string): Promise<{
     problemIds: string[];
     problems: IProblemDetails[];
@@ -75,6 +80,7 @@ export class SubmissionService implements ISubmissionService {
       problemId: submissionData.problemId,
       code: submissionData.code,
       language: submissionData.language,
+      isPracticeRun: false,
       status: SubmissionStatus.QUEUED,
       verdict: null,
     });
@@ -107,6 +113,71 @@ export class SubmissionService implements ISubmissionService {
 
   async getSubmissionsByProblemId(problemId: string): Promise<ISubmission[]> {
     return await this.submissionRepository.findByProblemId(problemId);
+  }
+
+  async getMySubmissionsByProblemId(
+    userId: string,
+    problemId: string,
+  ): Promise<ISubmission[]> {
+    if (!userId) {
+      throw new BadRequestError("User ID is required");
+    }
+    return await this.submissionRepository.findByUserAndProblem(
+      userId,
+      problemId,
+    );
+  }
+
+  async runSampleTests(
+    submissionData: Partial<ISubmission>,
+  ): Promise<ISubmission | null> {
+    if (!submissionData.problemId) {
+      throw new BadRequestError("Problem ID is required");
+    }
+
+    if (!submissionData.userId) {
+      throw new BadRequestError("User ID is required");
+    }
+
+    if (!submissionData.code) {
+      throw new BadRequestError("Code is required");
+    }
+
+    if (!submissionData.language) {
+      throw new BadRequestError("Language is required");
+    }
+
+    const problem = await getProblemById(submissionData.problemId);
+    if (!problem) {
+      throw new NotFoundError("Problem not found");
+    }
+
+    const sampleProblem = {
+      ...problem,
+      testcases: problem.testcases.slice(0, 2),
+    };
+
+    const submission = await this.submissionRepository.create({
+      userId: submissionData.userId,
+      problemId: submissionData.problemId,
+      code: submissionData.code,
+      language: submissionData.language,
+      isPracticeRun: true,
+      status: SubmissionStatus.QUEUED,
+      verdict: null,
+    });
+
+    const jobId = await addSubmissionJob({
+      submissionId: submission._id.toString(),
+      problem: sampleProblem,
+      code: submission.code,
+      language: submission.language,
+    });
+    if (!jobId) {
+      throw new BadRequestError("Failed to add sample run to the queue");
+    }
+
+    return submission;
   }
 
   async getAcceptedProblemsByUserId(userId: string): Promise<{
@@ -149,7 +220,10 @@ export class SubmissionService implements ISubmissionService {
     );
     const orderedProblems = problemIds
       .map((problemId) => problemMap.get(problemId))
-      .filter((problem): problem is IProblemDetails => Boolean(problem));
+      .filter(
+        (problem): problem is IProblemDetails =>
+          Boolean(problem) && !problem?.isForBattle,
+      );
 
     const byDifficulty = {
       easy: 0,
@@ -164,7 +238,7 @@ export class SubmissionService implements ISubmissionService {
     }
 
     return {
-      problemIds,
+      problemIds: orderedProblems.map((problem) => problem.id),
       problems: orderedProblems,
       stats: {
         totalSolved: orderedProblems.length,
