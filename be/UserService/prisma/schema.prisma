@@ -36,6 +36,7 @@ enum EmailTokenPurpose {
    password          String
    role              UserRole       @default(USER)
    profileVisibility PrivacySetting @default(PUBLIC)
+   eloRating         Int            @default(300)
   emailVerified     Boolean        @default(false)
   emailVerifiedAt   DateTime?
    createdAt         DateTime       @default(now())

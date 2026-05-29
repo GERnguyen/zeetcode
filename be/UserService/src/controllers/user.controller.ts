@@ -3,6 +3,7 @@ import {
   changePassword,
   confirmPasswordChange,
   confirmSignup,
+  getUserElo,
   getUserProfile,
   loginUser,
   logoutUser,
@@ -11,6 +12,7 @@ import {
   requestPasswordReset,
   resetPassword,
   updateUserProfile,
+  updateUserElo,
 } from "../services/user.service";
 import {
   ChangePasswordDto,
@@ -22,6 +24,7 @@ import {
   RequestPasswordResetDto,
   ResetPasswordDto,
   UpdateUserDto,
+  UpdateUserEloDto,
 } from "../validators/user.validator";
 import { AuthRequest } from "../middlewares/auth.middleware";
 
@@ -185,6 +188,35 @@ export const resetPasswordHandler = async (
       success: true,
       message: "Password reset successfully",
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUserEloHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { id } = req.params;
+    const user = await getUserElo(id);
+    res.status(200).json({ success: true, data: user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateUserEloHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { id } = req.params;
+    const payload = req.body as UpdateUserEloDto;
+    const user = await updateUserElo(id, payload.delta);
+    res.status(200).json({ success: true, data: user });
   } catch (error) {
     next(error);
   }

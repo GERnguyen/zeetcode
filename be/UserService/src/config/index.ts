@@ -16,6 +16,7 @@ type ServerConfig = {
   FRONTEND_URL: string;
   DATABASE_URL: string;
   DIRECT_URL: string;
+  INTERNAL_SERVICE_TOKEN: string;
 };
 
 function loadEnv() {
@@ -46,4 +47,5 @@ export const serverConfig: ServerConfig = {
   DATABASE_URL:
     process.env.DATABASE_URL ||
     "postgresql://user:password@localhost:5432/mydb",
+  INTERNAL_SERVICE_TOKEN: process.env.INTERNAL_SERVICE_TOKEN || "",
 };

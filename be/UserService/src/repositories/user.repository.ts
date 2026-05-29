@@ -18,6 +18,7 @@ const userPublicSelect = {
   email: true,
   role: true,
   profileVisibility: true,
+  eloRating: true,
   createdAt: true,
 };
 
@@ -103,6 +104,41 @@ export async function updateUserById(
     }
     logger.error("Failed to update user", { error, id });
     throw new InternalServerError("Failed to update user");
+  }
+}
+
+export async function getUserEloById(
+  id: string,
+): Promise<{ id: string; eloRating: number } | null> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, eloRating: true },
+    });
+    return user;
+  } catch (error) {
+    logger.error("Failed to get user elo", { error, id });
+    throw new InternalServerError("Failed to get user elo");
+  }
+}
+
+export async function updateUserEloById(
+  id: string,
+  delta: number,
+): Promise<{ id: string; eloRating: number } | null> {
+  try {
+    const user = await prisma.user.update({
+      where: { id },
+      data: { eloRating: { increment: delta } },
+      select: { id: true, eloRating: true },
+    });
+    return user;
+  } catch (error) {
+    if (isRecordNotFound(error)) {
+      return null;
+    }
+    logger.error("Failed to update user elo", { error, id, delta });
+    throw new InternalServerError("Failed to update user elo");
   }
 }
 

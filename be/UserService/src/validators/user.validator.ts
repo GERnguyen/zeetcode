@@ -63,6 +63,14 @@ export const confirmSignupSchema = z.object({
   token: z.string().min(1, "Token không hợp lệ"),
 });
 
+export const userIdParamsSchema = z.object({
+  id: z.string().min(1, "User id không hợp lệ"),
+});
+
+export const updateUserEloSchema = z.object({
+  delta: z.coerce.number().int(),
+});
+
 export type RegisterUserDto = z.infer<typeof registerUserSchema>;
 export type LoginUserDto = z.infer<typeof loginUserSchema>;
 export type UpdateUserDto = z.infer<typeof updateUserSchema>;
@@ -77,3 +85,4 @@ export type ConfirmPasswordChangeDto = z.infer<
   typeof confirmPasswordChangeSchema
 >;
 export type ConfirmSignupDto = z.infer<typeof confirmSignupSchema>;
+export type UpdateUserEloDto = z.infer<typeof updateUserEloSchema>;

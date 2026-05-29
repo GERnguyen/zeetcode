@@ -21,7 +21,9 @@ import {
   createUser,
   findUserByEmail,
   findUserById,
+  getUserEloById,
   updateUserById,
+  updateUserEloById,
 } from "../repositories/user.repository";
 import { EmailTokenPurpose, User, UserRole } from "../generated/prisma/client";
 import { sendEmail } from "./email.service";
@@ -237,6 +239,22 @@ export const confirmSignup = async (token: string) => {
   }
 
   await revokeAllRefreshTokens(record.userId);
+};
+
+export const getUserElo = async (userId: string) => {
+  const user = await getUserEloById(userId);
+  if (!user) {
+    throw new NotFoundError("User not found");
+  }
+  return user;
+};
+
+export const updateUserElo = async (userId: string, delta: number) => {
+  const user = await updateUserEloById(userId, delta);
+  if (!user) {
+    throw new NotFoundError("User not found");
+  }
+  return user;
 };
 
 export const refreshAuthTokens = async (refreshToken: string) => {

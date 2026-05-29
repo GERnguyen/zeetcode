@@ -725,6 +725,78 @@ paths:
               schema:
                 $ref: "#/components/schemas/BasicErrorResponse"
 
+  /user-service/api/v1/users/{id}/elo:
+    get:
+      tags: [UserService.User]
+      summary: Get user Elo (internal)
+      operationId: getUserElo
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - in: header
+          name: x-service-token
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User Elo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserEloResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+    patch:
+      tags: [UserService.User]
+      summary: Update user Elo (internal)
+      operationId: updateUserElo
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - in: header
+          name: x-service-token
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserEloRequest"
+      responses:
+        "200":
+          description: User Elo updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserEloResponse"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
   /battle-service/api/v1/battles/me/history:
     get:
       tags: [BattleService]
@@ -1331,6 +1403,8 @@ components:
           $ref: "#/components/schemas/UserRole"
         profileVisibility:
           $ref: "#/components/schemas/PrivacySetting"
+        eloRating:
+          type: integer
         emailVerified:
           type: boolean
         emailVerifiedAt:
@@ -1348,6 +1422,29 @@ components:
         - profileVisibility
         - emailVerified
         - createdAt
+
+    UpdateUserEloRequest:
+      type: object
+      properties:
+        delta:
+          type: integer
+      required: [delta]
+
+    UserEloResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            eloRating:
+              type: integer
+          required: [id, eloRating]
+      required: [success, data]
 
     AuthTokens:
       type: object

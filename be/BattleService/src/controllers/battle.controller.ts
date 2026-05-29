@@ -39,7 +39,7 @@ export const joinPrivateRoomHandler = async (
   try {
     const authReq = req as AuthenticatedRequest;
     const userId = authReq.user?.id as string;
-    const { roomId } = req.params;
+    const roomId = req.params.roomId as string;
     const payload = req.body as JoinPrivateRoomDto;
 
     const room = await battleService.joinPrivateRoom(
@@ -66,7 +66,7 @@ export const getBattleRoomHandler = async (
   try {
     const authReq = req as AuthenticatedRequest;
     const userId = authReq.user?.id as string;
-    const { roomId } = req.params;
+    const roomId = req.params.roomId as string;
 
     const room = await battleService.getRoomById(roomId);
     const isMember = room.players.some((player) => player.userId === userId);

@@ -40,6 +40,7 @@ export interface IBattlePlayer {
 }
 
 export interface IBattleRoom extends Document {
+  id: string;
   mode: BattleMode;
   status: BattleStatus;
   difficulty: BattleDifficulty;

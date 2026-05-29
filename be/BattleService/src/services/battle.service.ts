@@ -1,4 +1,3 @@
-import { BattleProfileRepository } from "../repositories/battle-profile.repository";
 import { BattleRoomRepository } from "../repositories/battle-room.repository";
 import {
   BattleDifficulty,
@@ -8,10 +7,10 @@ import {
   SubmissionVerdict,
 } from "../models/battle-room.model";
 import { redis } from "../config/redis.config";
-import { serverConfig } from "../config";
 import logger from "../config/logger.config";
 import { BadRequestError, NotFoundError } from "../utils/errors/app.error";
 import { getProblemsByDifficulty } from "../apis/problem.api";
+import { getUserElo, updateUserElo } from "../apis/user.api";
 import { v4 as uuidV4 } from "uuid";
 
 const RANKED_QUEUE_KEY = "battle:ranked:queue";
@@ -22,26 +21,10 @@ const DEFAULT_TIMER_SECONDS: Record<BattleDifficulty, number> = {
 };
 
 export class BattleService {
-  private profileRepository: BattleProfileRepository;
   private roomRepository: BattleRoomRepository;
 
-  constructor(
-    profileRepository: BattleProfileRepository,
-    roomRepository: BattleRoomRepository,
-  ) {
-    this.profileRepository = profileRepository;
+  constructor(roomRepository: BattleRoomRepository) {
     this.roomRepository = roomRepository;
-  }
-
-  async ensureProfile(userId: string) {
-    let profile = await this.profileRepository.findByUserId(userId);
-    if (!profile) {
-      profile = await this.profileRepository.createProfile({
-        userId,
-        eloRating: serverConfig.DEFAULT_ELO,
-      });
-    }
-    return profile;
   }
 
   private resolveDifficulty(elo: number): BattleDifficulty {
@@ -78,9 +61,9 @@ export class BattleService {
   }
 
   async enqueueRanked(userId: string) {
-    const profile = await this.ensureProfile(userId);
-    await redis.zadd(RANKED_QUEUE_KEY, profile.eloRating, userId);
-    return profile;
+    const eloRating = await getUserElo(userId);
+    await redis.zadd(RANKED_QUEUE_KEY, eloRating, userId);
+    return { userId, eloRating };
   }
 
   async dequeueRanked(userId: string) {
@@ -96,7 +79,10 @@ export class BattleService {
     await redis.zrem(RANKED_QUEUE_KEY, ...queuedUsers);
 
     const profiles = await Promise.all(
-      queuedUsers.map((userId) => this.ensureProfile(userId)),
+      queuedUsers.map(async (userId) => ({
+        userId,
+        eloRating: await getUserElo(userId),
+      })),
     );
 
     const averageElo =
@@ -416,8 +402,8 @@ export class BattleService {
     results: Record<string, BattleResult>,
   ) {
     const [playerA, playerB] = room.players;
-    const profileA = await this.ensureProfile(playerA.userId);
-    const profileB = await this.ensureProfile(playerB.userId);
+    const eloA = await getUserElo(playerA.userId);
+    const eloB = await getUserElo(playerB.userId);
 
     const resultA = results[playerA.userId];
     const resultB = results[playerB.userId];
@@ -433,37 +419,21 @@ export class BattleService {
       deltaA = -25;
     }
 
-    const nextEloA = profileA.eloRating + deltaA;
-    const nextEloB = profileB.eloRating + deltaB;
-
-    await this.profileRepository.updateByUserId(playerA.userId, {
-      eloRating: nextEloA,
-      wins: profileA.wins + (resultA === "WIN" ? 1 : 0),
-      losses: profileA.losses + (resultA === "LOSS" ? 1 : 0),
-      draws: profileA.draws + (resultA === "DRAW" ? 1 : 0),
-      totalBattles: profileA.totalBattles + 1,
-    });
-
-    await this.profileRepository.updateByUserId(playerB.userId, {
-      eloRating: nextEloB,
-      wins: profileB.wins + (resultB === "WIN" ? 1 : 0),
-      losses: profileB.losses + (resultB === "LOSS" ? 1 : 0),
-      draws: profileB.draws + (resultB === "DRAW" ? 1 : 0),
-      totalBattles: profileB.totalBattles + 1,
-    });
+    const nextEloA = await updateUserElo(playerA.userId, deltaA);
+    const nextEloB = await updateUserElo(playerB.userId, deltaB);
 
     room.players = room.players.map((player) => {
       if (player.userId === playerA.userId) {
         return {
           ...player,
-          eloBefore: profileA.eloRating,
+          eloBefore: eloA,
           eloAfter: nextEloA,
           eloDelta: deltaA,
         };
       }
       return {
         ...player,
-        eloBefore: profileB.eloRating,
+        eloBefore: eloB,
         eloAfter: nextEloB,
         eloDelta: deltaB,
       };
