@@ -13,6 +13,16 @@ import { updateSubmission } from "../api/submission.api";
 
 type TestCaseResultStatus = "AC" | "WA" | "TLE" | "RE" | "CE" | "BLOCKED";
 
+function normalizeForJudge(output: string): string {
+  return output
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n")
+    .trimEnd();
+}
+
 async function evaluateTestCasesSequentially(
   code: string,
   language: EvaluationJob["language"],
@@ -39,7 +49,10 @@ async function evaluateTestCasesSequentially(
     runtimeMs += result.runtimeMs;
 
     if (result.status === "success") {
-      if (result.output === testCase.output) {
+      const normalizedActual = normalizeForJudge(result.output);
+      const normalizedExpected = normalizeForJudge(testCase.output);
+
+      if (normalizedActual === normalizedExpected) {
         testCaseResults[testCase._id] = "AC";
         passedTests += 1;
       } else {

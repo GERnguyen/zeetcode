@@ -1,0 +1,472 @@
+import { BattleProfileRepository } from "../repositories/battle-profile.repository";
+import { BattleRoomRepository } from "../repositories/battle-room.repository";
+import {
+  BattleDifficulty,
+  BattleResult,
+  IBattleRoom,
+  IBattlePlayer,
+  SubmissionVerdict,
+} from "../models/battle-room.model";
+import { redis } from "../config/redis.config";
+import { serverConfig } from "../config";
+import logger from "../config/logger.config";
+import { BadRequestError, NotFoundError } from "../utils/errors/app.error";
+import { getProblemsByDifficulty } from "../apis/problem.api";
+import { v4 as uuidV4 } from "uuid";
+
+const RANKED_QUEUE_KEY = "battle:ranked:queue";
+const DEFAULT_TIMER_SECONDS: Record<BattleDifficulty, number> = {
+  easy: 20 * 60,
+  medium: 40 * 60,
+  hard: 60 * 60,
+};
+
+export class BattleService {
+  private profileRepository: BattleProfileRepository;
+  private roomRepository: BattleRoomRepository;
+
+  constructor(
+    profileRepository: BattleProfileRepository,
+    roomRepository: BattleRoomRepository,
+  ) {
+    this.profileRepository = profileRepository;
+    this.roomRepository = roomRepository;
+  }
+
+  async ensureProfile(userId: string) {
+    let profile = await this.profileRepository.findByUserId(userId);
+    if (!profile) {
+      profile = await this.profileRepository.createProfile({
+        userId,
+        eloRating: serverConfig.DEFAULT_ELO,
+      });
+    }
+    return profile;
+  }
+
+  private resolveDifficulty(elo: number): BattleDifficulty {
+    if (elo < 1000) return "easy";
+    if (elo <= 1400) return "medium";
+    return "hard";
+  }
+
+  private resolveTimerSeconds(
+    difficulty: BattleDifficulty,
+    timerMinutes?: number,
+  ): number {
+    if (timerMinutes) {
+      return Math.max(5, timerMinutes) * 60;
+    }
+    return DEFAULT_TIMER_SECONDS[difficulty];
+  }
+
+  private async pickRandomBattleProblem(difficulty: BattleDifficulty) {
+    const problems = await getProblemsByDifficulty(difficulty);
+    const battleProblems = problems.filter((problem) => problem.isForBattle);
+    if (battleProblems.length === 0) {
+      throw new NotFoundError(
+        `No battle problems found for difficulty ${difficulty}`,
+      );
+    }
+    const randomIndex = Math.floor(Math.random() * battleProblems.length);
+    const problem = battleProblems[randomIndex];
+    return {
+      id: problem.id,
+      title: problem.title,
+      difficulty: problem.difficulty,
+    };
+  }
+
+  async enqueueRanked(userId: string) {
+    const profile = await this.ensureProfile(userId);
+    await redis.zadd(RANKED_QUEUE_KEY, profile.eloRating, userId);
+    return profile;
+  }
+
+  async dequeueRanked(userId: string) {
+    await redis.zrem(RANKED_QUEUE_KEY, userId);
+  }
+
+  async tryMatchRanked(): Promise<IBattleRoom | null> {
+    const queuedUsers = await redis.zrange(RANKED_QUEUE_KEY, 0, 1);
+    if (queuedUsers.length < 2) {
+      return null;
+    }
+
+    await redis.zrem(RANKED_QUEUE_KEY, ...queuedUsers);
+
+    const profiles = await Promise.all(
+      queuedUsers.map((userId) => this.ensureProfile(userId)),
+    );
+
+    const averageElo =
+      profiles.reduce((sum, profile) => sum + profile.eloRating, 0) /
+      profiles.length;
+    const difficulty = this.resolveDifficulty(averageElo);
+    const timerSeconds = this.resolveTimerSeconds(difficulty);
+    const problem = await this.pickRandomBattleProblem(difficulty);
+
+    const startedAt = new Date();
+    const endsAt = new Date(startedAt.getTime() + timerSeconds * 1000);
+
+    const players: IBattlePlayer[] = queuedUsers.map((userId, index) => ({
+      userId,
+      joinedAt: startedAt,
+      eloBefore: profiles[index].eloRating,
+    }));
+
+    const room = await this.roomRepository.createRoom({
+      mode: "RANKED",
+      status: "ACTIVE",
+      difficulty,
+      timerSeconds,
+      problem,
+      players,
+      startedAt,
+      endsAt,
+      winnerUserId: null,
+    });
+
+    logger.info("Ranked room created", { roomId: room.id });
+    return room;
+  }
+
+  async createPrivateRoom(
+    userId: string,
+    payload: { difficulty: BattleDifficulty; timerMinutes?: number },
+  ) {
+    const inviteCode = uuidV4().split("-")[0];
+    const timerSeconds = this.resolveTimerSeconds(
+      payload.difficulty,
+      payload.timerMinutes,
+    );
+
+    const room = await this.roomRepository.createRoom({
+      mode: "PRIVATE",
+      status: "WAITING",
+      difficulty: payload.difficulty,
+      timerSeconds,
+      inviteCode,
+      ownerId: userId,
+      players: [
+        {
+          userId,
+          joinedAt: new Date(),
+        },
+      ],
+    });
+
+    return room;
+  }
+
+  async joinPrivateRoom(userId: string, roomId: string, inviteCode: string) {
+    const room = await this.roomRepository.findById(roomId);
+    if (!room) {
+      throw new NotFoundError("Battle room not found");
+    }
+
+    if (room.mode !== "PRIVATE") {
+      throw new BadRequestError("Room is not a private battle");
+    }
+
+    if (room.inviteCode !== inviteCode) {
+      throw new BadRequestError("Invalid invite code");
+    }
+
+    if (room.players.find((player) => player.userId === userId)) {
+      return room;
+    }
+
+    if (room.players.length >= 2) {
+      throw new BadRequestError("Room is already full");
+    }
+
+    room.players.push({
+      userId,
+      joinedAt: new Date(),
+    });
+
+    if (room.players.length === 2) {
+      room.status = "READY";
+    }
+
+    await room.save();
+    return room;
+  }
+
+  async startPrivateRoom(userId: string, roomId: string) {
+    const room = await this.roomRepository.findById(roomId);
+    if (!room) {
+      throw new NotFoundError("Battle room not found");
+    }
+
+    if (room.mode !== "PRIVATE") {
+      throw new BadRequestError("Room is not a private battle");
+    }
+
+    if (room.ownerId !== userId) {
+      throw new BadRequestError("Only room owner can start the battle");
+    }
+
+    if (room.players.length < 2) {
+      throw new BadRequestError("Need 2 players to start the battle");
+    }
+
+    if (room.status === "ACTIVE") {
+      return room;
+    }
+
+    const problem = await this.pickRandomBattleProblem(room.difficulty);
+    const startedAt = new Date();
+    const endsAt = new Date(startedAt.getTime() + room.timerSeconds * 1000);
+
+    room.problem = problem;
+    room.status = "ACTIVE";
+    room.startedAt = startedAt;
+    room.endsAt = endsAt;
+
+    await room.save();
+    return room;
+  }
+
+  async getRoomById(roomId: string) {
+    const room = await this.roomRepository.findById(roomId);
+    if (!room) {
+      throw new NotFoundError("Battle room not found");
+    }
+    return room;
+  }
+
+  async getHistory(userId: string, page: number, limit: number) {
+    const skip = (page - 1) * limit;
+    const rooms = await this.roomRepository.findHistoryByUserId(
+      userId,
+      skip,
+      limit,
+    );
+    return rooms;
+  }
+
+  async recordSubmission(
+    roomId: string,
+    userId: string,
+    submissionId: string,
+    submittedAt: Date,
+  ) {
+    const room = await this.roomRepository.findById(roomId);
+    if (!room) {
+      throw new NotFoundError("Battle room not found");
+    }
+
+    const player = room.players.find((item) => item.userId === userId);
+    if (!player) {
+      throw new BadRequestError("Player not found in room");
+    }
+
+    player.lastSubmissionId = submissionId;
+    player.lastSubmittedAt = submittedAt;
+
+    await room.save();
+    return room;
+  }
+
+  async recordVerdict(
+    roomId: string,
+    userId: string,
+    verdict: SubmissionVerdict | null,
+    runtimeMs?: number,
+    submissionId?: string,
+  ) {
+    const room = await this.roomRepository.findById(roomId);
+    if (!room) {
+      throw new NotFoundError("Battle room not found");
+    }
+
+    const player = room.players.find((item) => item.userId === userId);
+    if (!player) {
+      throw new BadRequestError("Player not found in room");
+    }
+
+    if (submissionId) {
+      player.lastSubmissionId = submissionId;
+    }
+
+    if (verdict) {
+      player.lastVerdict = verdict;
+    }
+
+    if (verdict === "AC" && typeof runtimeMs === "number") {
+      if (
+        typeof player.bestRuntimeMs !== "number" ||
+        runtimeMs < player.bestRuntimeMs
+      ) {
+        player.bestRuntimeMs = runtimeMs;
+      }
+    }
+
+    await room.save();
+    return room;
+  }
+
+  async markPlayerLeft(roomId: string, userId: string) {
+    const room = await this.roomRepository.findById(roomId);
+    if (!room) {
+      throw new NotFoundError("Battle room not found");
+    }
+
+    const player = room.players.find((item) => item.userId === userId);
+    if (!player) {
+      throw new BadRequestError("Player not found in room");
+    }
+
+    player.hasLeft = true;
+    player.leftAt = new Date();
+
+    await room.save();
+
+    const hasAC = typeof player.bestRuntimeMs === "number";
+    const opponent = room.players.find((item) => item.userId !== userId);
+
+    if (!opponent) {
+      return { room, shouldFinalize: true, forcedWinnerUserId: null };
+    }
+
+    if (!hasAC) {
+      return {
+        room,
+        shouldFinalize: true,
+        forcedWinnerUserId: opponent.userId,
+      };
+    }
+
+    return { room, shouldFinalize: false, forcedWinnerUserId: null };
+  }
+
+  async finalizeRoom(roomId: string, forcedWinnerUserId?: string | null) {
+    const room = await this.roomRepository.findById(roomId);
+    if (!room) {
+      throw new NotFoundError("Battle room not found");
+    }
+
+    if (room.status === "FINISHED") {
+      return room;
+    }
+
+    if (room.players.length < 2) {
+      room.status = "CANCELED";
+      await room.save();
+      return room;
+    }
+
+    const [playerA, playerB] = room.players;
+
+    const aRuntime = playerA.bestRuntimeMs;
+    const bRuntime = playerB.bestRuntimeMs;
+
+    let winnerUserId: string | null = forcedWinnerUserId || null;
+
+    if (!winnerUserId) {
+      const aHasAC = typeof aRuntime === "number";
+      const bHasAC = typeof bRuntime === "number";
+
+      if (aHasAC && bHasAC) {
+        if (aRuntime < bRuntime) winnerUserId = playerA.userId;
+        else if (bRuntime < aRuntime) winnerUserId = playerB.userId;
+        else winnerUserId = null;
+      } else if (aHasAC) {
+        winnerUserId = playerA.userId;
+      } else if (bHasAC) {
+        winnerUserId = playerB.userId;
+      } else {
+        winnerUserId = null;
+      }
+    }
+
+    const results: Record<string, BattleResult> = {
+      [playerA.userId]: winnerUserId
+        ? winnerUserId === playerA.userId
+          ? "WIN"
+          : "LOSS"
+        : "DRAW",
+      [playerB.userId]: winnerUserId
+        ? winnerUserId === playerB.userId
+          ? "WIN"
+          : "LOSS"
+        : "DRAW",
+    };
+
+    room.winnerUserId = winnerUserId;
+    room.endedAt = new Date();
+    room.status = "FINISHED";
+    room.players = room.players.map((player) => ({
+      ...player,
+      result: results[player.userId],
+    }));
+
+    if (room.mode === "RANKED") {
+      await this.applyElo(room, results);
+    }
+
+    await room.save();
+    return room;
+  }
+
+  private async applyElo(
+    room: IBattleRoom,
+    results: Record<string, BattleResult>,
+  ) {
+    const [playerA, playerB] = room.players;
+    const profileA = await this.ensureProfile(playerA.userId);
+    const profileB = await this.ensureProfile(playerB.userId);
+
+    const resultA = results[playerA.userId];
+    const resultB = results[playerB.userId];
+
+    let deltaA = 0;
+    let deltaB = 0;
+
+    if (resultA === "WIN") {
+      deltaA = 30;
+      deltaB = -25;
+    } else if (resultB === "WIN") {
+      deltaB = 30;
+      deltaA = -25;
+    }
+
+    const nextEloA = profileA.eloRating + deltaA;
+    const nextEloB = profileB.eloRating + deltaB;
+
+    await this.profileRepository.updateByUserId(playerA.userId, {
+      eloRating: nextEloA,
+      wins: profileA.wins + (resultA === "WIN" ? 1 : 0),
+      losses: profileA.losses + (resultA === "LOSS" ? 1 : 0),
+      draws: profileA.draws + (resultA === "DRAW" ? 1 : 0),
+      totalBattles: profileA.totalBattles + 1,
+    });
+
+    await this.profileRepository.updateByUserId(playerB.userId, {
+      eloRating: nextEloB,
+      wins: profileB.wins + (resultB === "WIN" ? 1 : 0),
+      losses: profileB.losses + (resultB === "LOSS" ? 1 : 0),
+      draws: profileB.draws + (resultB === "DRAW" ? 1 : 0),
+      totalBattles: profileB.totalBattles + 1,
+    });
+
+    room.players = room.players.map((player) => {
+      if (player.userId === playerA.userId) {
+        return {
+          ...player,
+          eloBefore: profileA.eloRating,
+          eloAfter: nextEloA,
+          eloDelta: deltaA,
+        };
+      }
+      return {
+        ...player,
+        eloBefore: profileB.eloRating,
+        eloAfter: nextEloB,
+        eloDelta: deltaB,
+      };
+    });
+  }
+}

@@ -7,3 +7,8 @@ be/days-roadmap/*.html
 
 Postman_Collection.json
 battle-idea.md
+
+scripts
+leetcode-batch-report.json
+/package-lock.json
+/package.json

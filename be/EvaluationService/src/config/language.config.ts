@@ -6,7 +6,7 @@ export const LANGUAGE_CONFIG = {
         imageName: PYTHON_IMAGE
     },
     cpp: {
-        timeout: 1000,
+        timeout: 4000,
         imageName: CPP_IMAGE
     }
 }

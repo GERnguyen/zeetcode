@@ -32,6 +32,8 @@ servers:
     description: EvaluationService local
   - url: http://localhost:3003
     description: UserService local
+  - url: http://localhost:3004
+    description: BattleService local
 
 tags:
   - name: ProblemService
@@ -39,6 +41,7 @@ tags:
   - name: EvaluationService
   - name: UserService.Auth
   - name: UserService.User
+  - name: BattleService
   - name: Health
 
 paths:
@@ -722,6 +725,148 @@ paths:
               schema:
                 $ref: "#/components/schemas/BasicErrorResponse"
 
+  /battle-service/api/v1/battles/me/history:
+    get:
+      tags: [BattleService]
+      summary: Get current user battle history
+      operationId: getBattleHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Battle history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BattleHistoryResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /battle-service/api/v1/battles/private:
+    post:
+      tags: [BattleService]
+      summary: Create a private battle room
+      operationId: createPrivateBattleRoom
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePrivateBattleRoomRequest"
+      responses:
+        "201":
+          description: Private room created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BattleRoomResponse"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /battle-service/api/v1/battles/private/{roomId}/join:
+    post:
+      tags: [BattleService]
+      summary: Join a private battle room
+      operationId: joinPrivateBattleRoom
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinPrivateBattleRoomRequest"
+      responses:
+        "200":
+          description: Joined room
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BattleRoomResponse"
+        "400":
+          description: Invalid room or invite code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /battle-service/api/v1/battles/{roomId}:
+    get:
+      tags: [BattleService]
+      summary: Get battle room by id
+      operationId: getBattleRoom
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Battle room details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BattleRoomResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1376,3 +1521,143 @@ components:
         error:
           description: Optional validation/details object from backend.
       required: [success, message]
+
+    BattleDifficulty:
+      type: string
+      enum: [easy, medium, hard]
+
+    BattleMode:
+      type: string
+      enum: [RANKED, PRIVATE]
+
+    BattleStatus:
+      type: string
+      enum: [WAITING, READY, ACTIVE, FINISHED, CANCELED]
+
+    BattleResult:
+      type: string
+      enum: [WIN, LOSS, DRAW]
+
+    BattleProblem:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        difficulty:
+          $ref: "#/components/schemas/BattleDifficulty"
+      required: [id, title, difficulty]
+
+    BattlePlayer:
+      type: object
+      properties:
+        userId:
+          type: string
+        joinedAt:
+          type: string
+          format: date-time
+        leftAt:
+          type: string
+          format: date-time
+        hasLeft:
+          type: boolean
+        bestRuntimeMs:
+          type: number
+        lastVerdict:
+          type: string
+        lastSubmissionId:
+          type: string
+        lastSubmittedAt:
+          type: string
+          format: date-time
+        result:
+          $ref: "#/components/schemas/BattleResult"
+        eloBefore:
+          type: number
+        eloAfter:
+          type: number
+        eloDelta:
+          type: number
+      required: [userId, joinedAt]
+
+    BattleRoom:
+      type: object
+      properties:
+        id:
+          type: string
+        mode:
+          $ref: "#/components/schemas/BattleMode"
+        status:
+          $ref: "#/components/schemas/BattleStatus"
+        difficulty:
+          $ref: "#/components/schemas/BattleDifficulty"
+        timerSeconds:
+          type: integer
+        inviteCode:
+          type: string
+        ownerId:
+          type: string
+        problem:
+          $ref: "#/components/schemas/BattleProblem"
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/BattlePlayer"
+        startedAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+        winnerUserId:
+          type: string
+      required: [id, mode, status, difficulty, timerSeconds, players]
+
+    BattleRoomResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/BattleRoom"
+      required: [success, data]
+
+    BattleHistoryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/BattleRoom"
+      required: [success, data]
+
+    CreatePrivateBattleRoomRequest:
+      type: object
+      properties:
+        difficulty:
+          $ref: "#/components/schemas/BattleDifficulty"
+        timerMinutes:
+          type: integer
+          minimum: 5
+          maximum: 180
+      required: [difficulty]
+
+    JoinPrivateBattleRoomRequest:
+      type: object
+      properties:
+        inviteCode:
+          type: string
+          minLength: 4
+      required: [inviteCode]
