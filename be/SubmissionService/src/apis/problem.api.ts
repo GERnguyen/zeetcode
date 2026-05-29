@@ -74,9 +74,15 @@ export async function getProblemsByIds(
 
   try {
     const response: AxiosResponse<IProblemBatchLookupResponse> =
-      await axios.post(`${serverConfig.PROBLEM_SERVICE_URL}/problems/batch`, {
-        ids,
-      });
+      await axios.post(
+        `${serverConfig.PROBLEM_SERVICE_URL}/problems/batch`,
+        { ids },
+        {
+          headers: {
+            "x-service-token": serverConfig.PROBLEM_SERVICE_TOKEN,
+          },
+        },
+      );
 
     if (response.data.success) {
       return response.data.data;

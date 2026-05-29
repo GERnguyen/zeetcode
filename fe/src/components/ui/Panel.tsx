@@ -11,7 +11,7 @@ export function Panel({
   return (
     <section
       className={cn(
-        "rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)]",
+        "surface-panel rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)]",
         className,
       )}
     >

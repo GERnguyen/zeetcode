@@ -1,5 +1,5 @@
 import { Editor } from "@monaco-editor/react";
-import { Code2, Play, Send } from "lucide-react";
+import { Code2, Loader2, Play, Send } from "lucide-react";
 import type { Submission } from "../../../types/domain";
 import { Button } from "../../ui/Button";
 import { Select } from "../../ui/Form";
@@ -10,6 +10,10 @@ type ProblemEditorProps = {
   language: "python" | "cpp";
   runResult: Submission | null;
   submitResult: Submission | null;
+  runBusy: boolean;
+  submitBusy: boolean;
+  runError: string;
+  submitError: string;
   onCodeChange: (value: string) => void;
   onLanguageChange: (value: "python" | "cpp") => void;
   onRun: () => void;
@@ -21,19 +25,23 @@ export function ProblemEditor({
   language,
   runResult,
   submitResult,
+  runBusy,
+  submitBusy,
+  runError,
+  submitError,
   onCodeChange,
   onLanguageChange,
   onRun,
   onSubmit,
 }: ProblemEditorProps) {
   return (
-    <div className="min-h-0 overflow-hidden rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)]">
-      <div className="flex min-h-13 items-center justify-between gap-2.5 border-b border-[var(--line)] bg-[#202227] px-3">
+    <div className="editor-shell min-h-0 overflow-hidden rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)]">
+      <div className="editor-toolbar flex min-h-13 items-center justify-between gap-2.5 border-b border-[var(--line)] px-3 max-md:grid max-md:py-3">
         <div className="flex items-center gap-2.5">
           <Code2 size={17} />
           <span>solution.{language === "cpp" ? "cpp" : "py"}</span>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 max-sm:grid">
           <Select
             value={language}
             onChange={(event) =>
@@ -43,13 +51,30 @@ export function ProblemEditor({
             <option value="python">Python</option>
             <option value="cpp">C++</option>
           </Select>
-          <Button onClick={onRun}>
-            <Play size={17} />
-            Run
+          <Button
+            className="run-action-button"
+            disabled={runBusy || submitBusy}
+            onClick={onRun}
+          >
+            {runBusy ? (
+              <Loader2 className="animate-spin" size={17} />
+            ) : (
+              <Play size={17} />
+            )}
+            {runBusy ? "Running..." : "Run"}
           </Button>
-          <Button variant="primary" onClick={onSubmit}>
-            <Send size={17} />
-            Submit
+          <Button
+            className="submit-action-button"
+            disabled={runBusy || submitBusy}
+            variant="primary"
+            onClick={onSubmit}
+          >
+            {submitBusy ? (
+              <Loader2 className="animate-spin" size={17} />
+            ) : (
+              <Send size={17} />
+            )}
+            {submitBusy ? "Submitting..." : "Submit"}
           </Button>
         </div>
       </div>
@@ -61,9 +86,14 @@ export function ProblemEditor({
         onChange={(value) => onCodeChange(value ?? "")}
         options={{ minimap: { enabled: false }, fontSize: 14 }}
       />
-      <div className="grid min-h-20 content-center gap-2 border-t border-[var(--line)] bg-[#1e2025] px-3.5 py-2.5">
-        <ResultLine label="Run" submission={runResult} />
-        <ResultLine label="Submit" submission={submitResult} />
+      <div className="result-panel grid min-h-20 content-center gap-2 border-t border-[var(--line)] px-3.5 py-2.5">
+        <ResultLine busy={runBusy} error={runError} label="Run" submission={runResult} />
+        <ResultLine
+          busy={submitBusy}
+          error={submitError}
+          label="Submit"
+          submission={submitResult}
+        />
       </div>
     </div>
   );

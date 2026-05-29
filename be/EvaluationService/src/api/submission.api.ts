@@ -40,7 +40,22 @@ export async function updateSubmission(
     console.log("Submission updated successfully", response.data);
     return;
   } catch (error) {
-    logger.error(`Failed to update submission: ${error}`);
+    if (axios.isAxiosError(error)) {
+      logger.error("Failed to update submission", {
+        message: error.message,
+        code: error.code,
+        request: {
+          method: error.config?.method,
+          url: error.config?.url,
+        },
+        response: {
+          status: error.response?.status,
+          data: error.response?.data,
+        },
+      });
+    } else {
+      logger.error("Failed to update submission", error);
+    }
     throw new InternalServerError("Failed to update submission");
   }
 }

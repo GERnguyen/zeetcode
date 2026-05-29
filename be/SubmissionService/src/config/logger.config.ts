@@ -2,10 +2,65 @@ import winston from "winston";
 import { getCorrelationId } from "../utils/helpers/request.helpers";
 import DailyRotateFile from "winston-daily-rotate-file";
 
+function normalizeLogValue(value: unknown, seen = new WeakSet<object>()): unknown {
+    if (value instanceof Error) {
+        return {
+            name: value.name,
+            message: value.message,
+            stack: value.stack,
+            ...("statusCode" in value ? { statusCode: value.statusCode } : {}),
+        };
+    }
+
+    if (value === null || typeof value !== "object") {
+        return value;
+    }
+
+    if (seen.has(value)) {
+        return "[Circular]";
+    }
+    seen.add(value);
+
+    if (Array.isArray(value)) {
+        return value.map((item) => normalizeLogValue(item, seen));
+    }
+
+    const maybeAxiosError = value as {
+        isAxiosError?: boolean;
+        message?: string;
+        code?: string;
+        config?: { method?: string; url?: string; baseURL?: string };
+        response?: { status?: number; data?: unknown };
+    };
+
+    if (maybeAxiosError.isAxiosError) {
+        return {
+            name: "AxiosError",
+            message: maybeAxiosError.message,
+            code: maybeAxiosError.code,
+            request: {
+                method: maybeAxiosError.config?.method,
+                url: maybeAxiosError.config?.url,
+                baseURL: maybeAxiosError.config?.baseURL,
+            },
+            response: {
+                status: maybeAxiosError.response?.status,
+                data: maybeAxiosError.response?.data,
+            },
+        };
+    }
+
+    return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+            key,
+            normalizeLogValue(item, seen),
+        ]),
+    );
+}
+
 const logger = winston.createLogger({
     format: winston.format.combine(
         winston.format.timestamp({ format: "MM-DD-YYYY HH:mm:ss"  }), // how the timestamp should be formatted
-        winston.format.json(), // Format the log message as JSON
         // define a cutom print
         winston.format.printf( ({  level, message, timestamp, ...data }) => {
             const output = { 
@@ -13,7 +68,7 @@ const logger = winston.createLogger({
                 message, 
                 timestamp, 
                 correlationId: getCorrelationId(), 
-                data 
+                data: normalizeLogValue(data),
             };
             return JSON.stringify(output);
         })

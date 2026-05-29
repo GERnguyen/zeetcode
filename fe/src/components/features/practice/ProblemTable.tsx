@@ -25,11 +25,11 @@ export function ProblemTable({
 }: ProblemTableProps) {
   return (
     <>
-      <Panel className="overflow-hidden p-0">
-        <div className="grid min-h-14 grid-cols-[130px_minmax(0,1.4fr)_minmax(160px,0.8fr)_150px] items-center bg-[#2e3138] px-5 font-black max-lg:grid-cols-[70px_minmax(0,1fr)_110px]">
+      <Panel className="problem-table overflow-hidden p-0">
+        <div className="table-head problem-grid min-h-14 px-5 font-black">
           <span>Status</span>
           <span>Problem</span>
-          <span className="max-lg:hidden">Tags</span>
+          <span className="problem-tags">Tags</span>
           <span>Difficulty</span>
         </div>
         {loading &&
@@ -44,7 +44,7 @@ export function ProblemTable({
           !error &&
           items.map((problem) => (
             <button
-              className="grid min-h-[68px] w-full grid-cols-[130px_minmax(0,1.4fr)_minmax(160px,0.8fr)_150px] items-center border-0 border-t border-[var(--line)] bg-[var(--panel)] px-5 text-left text-[var(--text)] hover:bg-[#214f53] max-lg:grid-cols-[70px_minmax(0,1fr)_110px]"
+              className="table-row problem-grid min-h-[68px] w-full border-0 border-t border-[var(--line)] px-5 text-left text-[var(--text)]"
               key={problem.id}
               onClick={() => onProblemClick(problem.id)}
             >
@@ -57,11 +57,11 @@ export function ProblemTable({
               >
                 {problem.isSolved && <Check size={16} />}
               </span>
-              <strong>{problem.title}</strong>
-              <span className="text-[var(--muted)] max-lg:hidden">
+              <strong className="problem-title">{problem.title}</strong>
+              <span className="problem-tags text-[var(--muted)]">
                 {problem.tags?.slice(0, 3).join(", ")}
               </span>
-              <small className={`difficulty-${problem.difficulty} font-black`}>
+              <small className={`problem-difficulty difficulty-${problem.difficulty} font-black`}>
                 {problem.difficulty}
               </small>
             </button>

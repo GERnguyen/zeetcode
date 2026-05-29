@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 import { loginUser, registerUser } from "../../../lib/api/auth";
 import { getAxiosMessage } from "../../../lib/api/http";
 import { useAuthStore } from "../../../stores/authStore";
@@ -10,11 +10,19 @@ export function AuthScreen() {
   const setSession = useAuthStore((state) => state.setSession);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [form, setForm] = useState({ username: "", email: "", password: "" });
-  const [status, setStatus] = useState("Ready");
+  const [status, setStatus] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const submit = async () => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
     try {
-      setStatus("Sending request...");
+      setIsSubmitting(true);
+      setStatus("");
       if (mode === "register") {
         const response = await registerUser(form);
         setStatus(response.message);
@@ -33,13 +41,15 @@ export function AuthScreen() {
       );
     } catch (error) {
       setStatus(getAxiosMessage(error));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-[var(--bg)] p-7 text-[var(--text)]">
-      <section className="grid w-full max-w-6xl grid-cols-[minmax(0,1fr)_390px] items-end gap-8 max-lg:grid-cols-1">
-        <div>
+    <main className="auth-shell grid min-h-dvh place-items-center p-7 text-[var(--text)]">
+      <section className="auth-layout grid w-full max-w-6xl grid-cols-[minmax(0,1fr)_390px] items-end gap-8 max-lg:grid-cols-1">
+        <div className="auth-copy">
           <p className="kicker">CodeBattle</p>
           <h1 className="m-0 max-w-3xl text-[clamp(42px,6vw,78px)] leading-[0.96]">
             Practice problems. Battle by runtime.
@@ -50,14 +60,18 @@ export function AuthScreen() {
           </p>
         </div>
 
-        <div className="grid gap-3.5 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] p-4">
-          <div className="grid grid-cols-2 gap-1.5 rounded-full bg-[#1d1f24] p-1.5">
+        <form
+          className="auth-card grid gap-3.5 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] p-4"
+          onSubmit={submit}
+        >
+          <div className="auth-tablist grid grid-cols-2 gap-1.5 rounded-full p-1.5">
             {(["login", "register"] as const).map((item) => (
               <button
                 key={item}
+                type="button"
                 className={cn(
-                  "min-h-9 rounded-full font-black text-[var(--muted)]",
-                  mode === item && "bg-[var(--accent)] text-[#102019]",
+                  "auth-tab min-h-9 rounded-full font-black text-[var(--muted)]",
+                  mode === item && "auth-tab-active",
                 )}
                 onClick={() => setMode(item)}
               >
@@ -70,6 +84,8 @@ export function AuthScreen() {
             <Field label="Username">
               <Input
                 value={form.username}
+                autoComplete="username"
+                required={mode === "register"}
                 onChange={(event) =>
                   setForm({ ...form, username: event.target.value })
                 }
@@ -78,7 +94,10 @@ export function AuthScreen() {
           )}
           <Field label="Email">
             <Input
+              type="email"
               value={form.email}
+              autoComplete="email"
+              required
               onChange={(event) => setForm({ ...form, email: event.target.value })}
             />
           </Field>
@@ -86,16 +105,28 @@ export function AuthScreen() {
             <Input
               type="password"
               value={form.password}
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              required
               onChange={(event) =>
                 setForm({ ...form, password: event.target.value })
               }
             />
           </Field>
-          <Button variant="primary" onClick={submit}>
-            Enter arena
+          <Button
+            className="auth-submit"
+            disabled={isSubmitting}
+            type="submit"
+            variant="primary"
+          >
+            {isSubmitting && <span className="loading-spinner" aria-hidden="true" />}
+            {isSubmitting
+              ? mode === "login"
+                ? "Entering..."
+                : "Creating..."
+              : "Enter arena"}
           </Button>
-          <p className="m-0 text-sm text-[var(--muted)]">{status}</p>
-        </div>
+          {status && <p className="auth-status m-0 text-sm">{status}</p>}
+        </form>
       </section>
     </main>
   );

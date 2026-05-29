@@ -4,6 +4,7 @@ import { createNewDockerContainer } from "./createContainer.util";
 
 const allowListedLanguage = ["python", "cpp"];
 const stageMarkerPrefix = "__JUDGE_STAGE__:";
+const runtimeMarkerPrefix = "__JUDGE_RUNTIME_MS__:";
 
 export interface RunCodeResult {
   status: "success" | "Time Limit Exceeded" | "failed";
@@ -51,6 +52,7 @@ export async function runCode(options: RunCodeOptions): Promise<RunCodeResult> {
   if (isTimeLimitExceeded) {
     const runtimeMs = Date.now() - startedAt;
     await container?.remove();
+    clearTimeout(timeLimitExceededTimeout);
     return {
       status: "Time Limit Exceeded",
       output: "Time Limit Exceeded",
@@ -63,9 +65,11 @@ export async function runCode(options: RunCodeOptions): Promise<RunCodeResult> {
     stderr: true,
   });
 
-  const containerLogs = processLogs(logs);
-  const errorStage = determineErrorStage(containerLogs);
-  const runtimeMs = Date.now() - startedAt;
+  const rawLogs = logs?.toString("utf8") ?? "";
+  const measuredRuntimeMs = extractMeasuredRuntimeMs(rawLogs);
+  const containerLogs = processLogs(rawLogs);
+  const errorStage = determineErrorStage(rawLogs);
+  const runtimeMs = measuredRuntimeMs ?? Date.now() - startedAt;
 
   await container?.remove();
 
@@ -89,16 +93,29 @@ export async function runCode(options: RunCodeOptions): Promise<RunCodeResult> {
   }
 }
 
-function processLogs(logs: Buffer | undefined) {
-  const normalizedLogs = logs?.toString("utf8") ?? "";
+function processLogs(logs: string) {
+  const normalizedLogs = logs;
 
   return normalizedLogs
     .replace(/\x00/g, "") // Remove null bytes
     .replace(/[\x00-\x09\x0B-\x1F\x7F-\x9F]/g, "") // Remove control characters except \n (0x0A)
     .split("\n")
     .filter((line) => !line.startsWith(stageMarkerPrefix))
+    .filter((line) => !line.startsWith(runtimeMarkerPrefix))
     .join("\n")
     .trim();
+}
+
+function extractMeasuredRuntimeMs(logs: string) {
+  const runtimeLine = logs
+    .split("\n")
+    .find((line) => line.startsWith(runtimeMarkerPrefix));
+  if (!runtimeLine) {
+    return null;
+  }
+
+  const runtimeMs = Number(runtimeLine.slice(runtimeMarkerPrefix.length));
+  return Number.isFinite(runtimeMs) ? runtimeMs : null;
 }
 
 function determineErrorStage(logs: string) {

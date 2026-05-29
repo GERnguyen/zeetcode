@@ -17,12 +17,12 @@ export function CompletionRing({
   const circumference = 2 * Math.PI * 76;
 
   return (
-    <div className="grid grid-cols-[150px_220px] items-center justify-end gap-6 max-sm:grid-cols-1">
+    <div className="completion-panel grid grid-cols-[150px_220px] items-center justify-end gap-6 rounded-[var(--radius)] p-4 max-sm:grid-cols-1">
       <div className="grid gap-3.5 text-2xl">
         {(["easy", "medium", "hard"] as Difficulty[]).map((level) => (
-          <div className="grid grid-cols-[90px_1fr]" key={level}>
+          <div className="completion-stat grid grid-cols-[90px_1fr] rounded-xl px-3 py-2" key={level}>
             <strong className={`difficulty-${level}`}>
-              {level === "medium" ? "Med" : level}
+              {level === "medium" ? "med" : level}
             </strong>
             <span>
               {solvedStats[level] ?? 0}/{stats[level] ?? 0}
@@ -30,7 +30,7 @@ export function CompletionRing({
           </div>
         ))}
       </div>
-      <div className="relative grid size-[220px] place-items-center">
+      <div className="completion-ring relative grid size-[220px] place-items-center">
         <svg
           className="absolute inset-0 -rotate-90"
           viewBox="0 0 180 180"

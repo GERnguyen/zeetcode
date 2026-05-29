@@ -50,7 +50,7 @@ export function PracticeHome() {
 
   return (
     <section className="grid gap-6">
-      <div className="grid min-h-[250px] grid-cols-[minmax(0,1fr)_440px] items-center gap-6 max-lg:grid-cols-1">
+      <div className="practice-hero grid min-h-[250px] grid-cols-[minmax(0,1fr)_440px] items-center gap-6 rounded-[var(--radius)] border border-[var(--line)] p-6 max-lg:grid-cols-1">
         <div>
           <p className="kicker">Practice set</p>
           <h2 className="m-0 text-5xl font-black">Core skills</h2>

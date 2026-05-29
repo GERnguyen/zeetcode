@@ -24,11 +24,11 @@ export function PracticeToolbar({
   onSortChange,
 }: PracticeToolbarProps) {
   return (
-    <div className="flex min-h-[76px] items-center gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] p-3 max-lg:grid">
-      <div className="flex min-w-[280px] flex-1 items-center gap-2 rounded-xl border border-[var(--line)] bg-[#22252b] px-3">
+    <div className="toolbar-panel flex min-h-[76px] items-center gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] p-3 max-lg:grid">
+      <div className="search-shell flex min-w-[280px] flex-1 items-center gap-2 rounded-xl border border-[var(--line)] bg-[#22252b] px-3 max-sm:min-w-0">
         <Search size={18} />
         <input
-          className="min-h-10 w-full border-0 bg-transparent p-0 text-[var(--text)] outline-none"
+          className="min-h-10 w-full border-0 bg-transparent p-0 text-[var(--text)] outline-none placeholder:text-[#707783]"
           placeholder="Search problems"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}

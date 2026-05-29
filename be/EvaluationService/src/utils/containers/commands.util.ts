@@ -1,4 +1,5 @@
 const bashConfig = ["/bin/bash", "-c"];
+const runtimePrefix = "__JUDGE_RUNTIME_MS__:";
 
 const writeFile = (fileName: string, content: string, label: string) => {
   const delimiter = `__JUDGE_EOF_${label}_${Math.random()
@@ -17,7 +18,14 @@ export const commands = {
       "echo '__JUDGE_STAGE__:compile'",
       "python3 -m py_compile code.py",
       "echo '__JUDGE_STAGE__:run'",
+      "start_ns=$(date +%s%N)",
+      "set +e",
       "python3 code.py < input.txt",
+      "status=$?",
+      "set -e",
+      "end_ns=$(date +%s%N)",
+      `echo '${runtimePrefix}'$(((end_ns - start_ns) / 1000000))`,
+      "exit $status",
     ].join("\n");
 
     return [...bashConfig, runCommand];
@@ -32,7 +40,14 @@ export const commands = {
       "echo '__JUDGE_STAGE__:compile'",
       "g++ code.cpp -o run",
       "echo '__JUDGE_STAGE__:run'",
+      "start_ns=$(date +%s%N)",
+      "set +e",
       "./run < input.txt",
+      "status=$?",
+      "set -e",
+      "end_ns=$(date +%s%N)",
+      `echo '${runtimePrefix}'$(((end_ns - start_ns) / 1000000))`,
+      "exit $status",
     ].join("\n");
 
     return [...bashConfig, runCommand];
