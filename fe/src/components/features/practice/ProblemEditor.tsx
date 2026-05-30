@@ -8,12 +8,12 @@ import { ResultLine } from "./ResultLine";
 type ProblemEditorProps = {
   code: string;
   language: "python" | "cpp";
-  runResult: Submission | null;
-  submitResult: Submission | null;
   runBusy: boolean;
   submitBusy: boolean;
-  runError: string;
-  submitError: string;
+  consoleBusy: boolean;
+  consoleError: string;
+  consoleLabel: string;
+  consoleResult: Submission | null;
   onCodeChange: (value: string) => void;
   onLanguageChange: (value: "python" | "cpp") => void;
   onRun: () => void;
@@ -23,12 +23,12 @@ type ProblemEditorProps = {
 export function ProblemEditor({
   code,
   language,
-  runResult,
-  submitResult,
   runBusy,
   submitBusy,
-  runError,
-  submitError,
+  consoleBusy,
+  consoleError,
+  consoleLabel,
+  consoleResult,
   onCodeChange,
   onLanguageChange,
   onRun,
@@ -86,13 +86,12 @@ export function ProblemEditor({
         onChange={(value) => onCodeChange(value ?? "")}
         options={{ minimap: { enabled: false }, fontSize: 14 }}
       />
-      <div className="result-panel grid min-h-20 content-center gap-2 border-t border-[var(--line)] px-3.5 py-2.5">
-        <ResultLine busy={runBusy} error={runError} label="Run" submission={runResult} />
+      <div className="result-panel grid min-h-32 content-center border-t border-[var(--line)] px-3.5 py-3.5">
         <ResultLine
-          busy={submitBusy}
-          error={submitError}
-          label="Submit"
-          submission={submitResult}
+          busy={consoleBusy}
+          error={consoleError}
+          label={consoleLabel}
+          submission={consoleResult}
         />
       </div>
     </div>

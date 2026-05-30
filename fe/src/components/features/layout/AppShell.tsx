@@ -1,4 +1,13 @@
-import { ChevronDown, Code2, History, LogOut, Pencil, Swords, TerminalSquare, UserRound } from "lucide-react";
+import {
+  ChevronDown,
+  Code2,
+  History,
+  LogOut,
+  Pencil,
+  Swords,
+  TerminalSquare,
+  UserRound,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -28,7 +37,7 @@ export function AppShell() {
       <aside className="app-sidebar flex flex-col gap-6 border-r border-[var(--line)] p-5 max-lg:min-h-0">
         <div className="brand-mark flex items-center gap-2.5 text-lg font-black">
           <TerminalSquare size={22} />
-          <span>CodeBattle</span>
+          <span>Zeetcode</span>
         </div>
         <nav className="grid gap-2">
           {navItems.map(([href, Icon, label]) => (
@@ -66,7 +75,10 @@ export function AppShell() {
                 <span className={cn("user-elo", rankClass)}>Elo: {elo}</span>
               </span>
               <ChevronDown
-                className={cn("user-menu-chevron", userMenuOpen && "rotate-180")}
+                className={cn(
+                  "user-menu-chevron",
+                  userMenuOpen && "rotate-180",
+                )}
                 size={17}
               />
             </button>
@@ -106,7 +118,7 @@ export function AppShell() {
               type="button"
             >
               <Swords size={22} />
-              <span>Battle</span>
+              <span>BATTLE NOW!!</span>
             </button>
           )}
         </header>

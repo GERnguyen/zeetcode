@@ -9,6 +9,7 @@ import {
 import {
   createPrivateRoomHandler,
   getBattleRoomHandler,
+  getCurrentBattleStateHandler,
   getMyBattleHistoryHandler,
   joinPrivateRoomHandler,
 } from "../../controllers/battle.controller";
@@ -20,6 +21,12 @@ battleRouter.get(
   authenticateAccessToken,
   validateQueryParams(historyQuerySchema),
   getMyBattleHistoryHandler,
+);
+
+battleRouter.get(
+  "/me/current",
+  authenticateAccessToken,
+  getCurrentBattleStateHandler,
 );
 
 battleRouter.post(

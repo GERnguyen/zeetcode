@@ -1,11 +1,11 @@
-import { useRef } from "react";
+import { useCallback, useRef } from "react";
 import { getSubmission } from "../lib/api/submissions";
 import type { Submission } from "../types/domain";
 
 export function useSubmissionPolling() {
   const timers = useRef<number[]>([]);
 
-  const pollSubmission = (
+  const pollSubmission = useCallback((
     submissionId: string,
     onUpdate: (submission: Submission) => void,
     onSettled?: () => void,
@@ -24,12 +24,12 @@ export function useSubmissionPolling() {
       }
     };
     poll();
-  };
+  }, []);
 
-  const clearTimers = () => {
+  const clearTimers = useCallback(() => {
     timers.current.forEach((timer) => window.clearTimeout(timer));
     timers.current = [];
-  };
+  }, []);
 
   return { pollSubmission, clearTimers };
 }

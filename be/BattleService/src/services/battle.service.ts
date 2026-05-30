@@ -10,8 +10,7 @@ import { redis } from "../config/redis.config";
 import logger from "../config/logger.config";
 import { BadRequestError, NotFoundError } from "../utils/errors/app.error";
 import { getProblemsByDifficulty } from "../apis/problem.api";
-import { getUserElo, updateUserElo } from "../apis/user.api";
-import { v4 as uuidV4 } from "uuid";
+import { getUserBattleProfile, getUserElo, updateUserElo } from "../apis/user.api";
 
 const RANKED_QUEUE_KEY = "battle:ranked:queue";
 const DEFAULT_TIMER_SECONDS: Record<BattleDifficulty, number> = {
@@ -19,6 +18,7 @@ const DEFAULT_TIMER_SECONDS: Record<BattleDifficulty, number> = {
   medium: 40 * 60,
   hard: 60 * 60,
 };
+const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 export class BattleService {
   private roomRepository: BattleRoomRepository;
@@ -60,7 +60,35 @@ export class BattleService {
     };
   }
 
+  private getActivePlayers(room: IBattleRoom) {
+    return room.players.filter((player) => !player.hasLeft);
+  }
+
+  private async assertUserCanEnterRoom(userId: string, allowedRoomId?: string) {
+    const openRoom = await this.roomRepository.findOpenRoomByUserId(userId);
+    if (openRoom && openRoom.id !== allowedRoomId) {
+      throw new BadRequestError("You are already in another active battle room");
+    }
+  }
+
+  private async generateRoomCode() {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      let code = "";
+      for (let index = 0; index < 6; index += 1) {
+        code += ROOM_CODE_ALPHABET[
+          Math.floor(Math.random() * ROOM_CODE_ALPHABET.length)
+        ];
+      }
+
+      const existingRoom = await this.roomRepository.findByRoomCode(code);
+      if (!existingRoom) return code;
+    }
+
+    throw new BadRequestError("Could not generate room code");
+  }
+
   async enqueueRanked(userId: string) {
+    await this.assertUserCanEnterRoom(userId);
     const eloRating = await getUserElo(userId);
     await redis.zadd(RANKED_QUEUE_KEY, eloRating, userId);
     return { userId, eloRating };
@@ -70,20 +98,64 @@ export class BattleService {
     await redis.zrem(RANKED_QUEUE_KEY, userId);
   }
 
+  async isRankedQueued(userId: string) {
+    const score = await redis.zscore(RANKED_QUEUE_KEY, userId);
+    return score !== null;
+  }
+
+  async getCurrentState(userId: string) {
+    const room = await this.roomRepository.findOpenRoomByUserId(userId);
+    const isQueued = await this.isRankedQueued(userId);
+    return { room, isQueued };
+  }
+
   async tryMatchRanked(): Promise<IBattleRoom | null> {
-    const queuedUsers = await redis.zrange(RANKED_QUEUE_KEY, 0, 1);
-    if (queuedUsers.length < 2) {
+    const queuedEntries = await redis.zrange(
+      RANKED_QUEUE_KEY,
+      0,
+      -1,
+      "WITHSCORES",
+    );
+    if (queuedEntries.length < 4) {
       return null;
     }
 
-    await redis.zrem(RANKED_QUEUE_KEY, ...queuedUsers);
+    const queuedProfiles = [];
+    for (let index = 0; index < queuedEntries.length; index += 2) {
+      queuedProfiles.push({
+        userId: queuedEntries[index],
+        eloRating: Number(queuedEntries[index + 1]),
+      });
+    }
 
-    const profiles = await Promise.all(
-      queuedUsers.map(async (userId) => ({
-        userId,
-        eloRating: await getUserElo(userId),
-      })),
-    );
+    let profiles:
+      | Array<{
+          userId: string;
+          eloRating: number;
+        }>
+      | null = null;
+
+    for (let index = 0; index < queuedProfiles.length - 1; index += 1) {
+      const first = queuedProfiles[index];
+      const second = queuedProfiles[index + 1];
+      if (
+        this.resolveDifficulty(first.eloRating) ===
+        this.resolveDifficulty(second.eloRating)
+      ) {
+        profiles = [first, second];
+        break;
+      }
+    }
+
+    if (!profiles) {
+      logger.info("No ranked match in same ELO range", {
+        queuedCount: queuedProfiles.length,
+      });
+      return null;
+    }
+
+    const queuedUsers = profiles.map((profile) => profile.userId);
+    await redis.zrem(RANKED_QUEUE_KEY, ...queuedUsers);
 
     const averageElo =
       profiles.reduce((sum, profile) => sum + profile.eloRating, 0) /
@@ -95,11 +167,17 @@ export class BattleService {
     const startedAt = new Date();
     const endsAt = new Date(startedAt.getTime() + timerSeconds * 1000);
 
-    const players: IBattlePlayer[] = queuedUsers.map((userId, index) => ({
-      userId,
-      joinedAt: startedAt,
-      eloBefore: profiles[index].eloRating,
-    }));
+    const players: IBattlePlayer[] = await Promise.all(
+      queuedUsers.map(async (userId, index) => {
+        const profile = await getUserBattleProfile(userId);
+        return {
+          userId,
+          username: profile.username,
+          joinedAt: startedAt,
+          eloBefore: profiles[index].eloRating,
+        };
+      }),
+    );
 
     const room = await this.roomRepository.createRoom({
       mode: "RANKED",
@@ -121,22 +199,28 @@ export class BattleService {
     userId: string,
     payload: { difficulty: BattleDifficulty; timerMinutes?: number },
   ) {
-    const inviteCode = uuidV4().split("-")[0];
+    await this.assertUserCanEnterRoom(userId);
+    await this.dequeueRanked(userId);
+
     const timerSeconds = this.resolveTimerSeconds(
       payload.difficulty,
       payload.timerMinutes,
     );
+
+    const ownerProfile = await getUserBattleProfile(userId);
 
     const room = await this.roomRepository.createRoom({
       mode: "PRIVATE",
       status: "WAITING",
       difficulty: payload.difficulty,
       timerSeconds,
-      inviteCode,
+      roomCode: await this.generateRoomCode(),
       ownerId: userId,
       players: [
         {
           userId,
+          username: ownerProfile.username,
+          eloBefore: ownerProfile.eloRating,
           joinedAt: new Date(),
         },
       ],
@@ -145,8 +229,8 @@ export class BattleService {
     return room;
   }
 
-  async joinPrivateRoom(userId: string, roomId: string, inviteCode: string) {
-    const room = await this.roomRepository.findById(roomId);
+  async joinPrivateRoom(userId: string, roomId: string) {
+    const room = await this.roomRepository.findByIdOrCode(roomId);
     if (!room) {
       throw new NotFoundError("Battle room not found");
     }
@@ -155,24 +239,40 @@ export class BattleService {
       throw new BadRequestError("Room is not a private battle");
     }
 
-    if (room.inviteCode !== inviteCode) {
-      throw new BadRequestError("Invalid invite code");
-    }
-
-    if (room.players.find((player) => player.userId === userId)) {
+    const existingPlayer = room.players.find((player) => player.userId === userId);
+    if (existingPlayer && !existingPlayer.hasLeft) {
       return room;
     }
 
-    if (room.players.length >= 2) {
+    if (room.status !== "WAITING" && room.status !== "READY") {
+      throw new BadRequestError("Room is not joinable");
+    }
+
+    await this.assertUserCanEnterRoom(userId, room.id);
+    await this.dequeueRanked(userId);
+
+    if (this.getActivePlayers(room).length >= 2) {
       throw new BadRequestError("Room is already full");
     }
 
-    room.players.push({
-      userId,
-      joinedAt: new Date(),
-    });
+    if (existingPlayer) {
+      const profile = await getUserBattleProfile(userId);
+      existingPlayer.username = profile.username;
+      existingPlayer.eloBefore = profile.eloRating;
+      existingPlayer.hasLeft = false;
+      existingPlayer.leftAt = undefined;
+      existingPlayer.joinedAt = new Date();
+    } else {
+      const profile = await getUserBattleProfile(userId);
+      room.players.push({
+        userId,
+        username: profile.username,
+        eloBefore: profile.eloRating,
+        joinedAt: new Date(),
+      });
+    }
 
-    if (room.players.length === 2) {
+    if (this.getActivePlayers(room).length === 2) {
       room.status = "READY";
     }
 
@@ -181,7 +281,7 @@ export class BattleService {
   }
 
   async startPrivateRoom(userId: string, roomId: string) {
-    const room = await this.roomRepository.findById(roomId);
+    const room = await this.roomRepository.findByIdOrCode(roomId);
     if (!room) {
       throw new NotFoundError("Battle room not found");
     }
@@ -194,7 +294,8 @@ export class BattleService {
       throw new BadRequestError("Only room owner can start the battle");
     }
 
-    if (room.players.length < 2) {
+    const activePlayers = this.getActivePlayers(room);
+    if (activePlayers.length < 2) {
       throw new BadRequestError("Need 2 players to start the battle");
     }
 
@@ -208,6 +309,7 @@ export class BattleService {
 
     room.problem = problem;
     room.status = "ACTIVE";
+    room.players = activePlayers;
     room.startedAt = startedAt;
     room.endsAt = endsAt;
 
@@ -215,8 +317,78 @@ export class BattleService {
     return room;
   }
 
+  async cancelPrivateRoom(userId: string, roomId: string) {
+    const room = await this.roomRepository.findByIdOrCode(roomId);
+    if (!room) {
+      throw new NotFoundError("Battle room not found");
+    }
+
+    if (room.mode !== "PRIVATE") {
+      throw new BadRequestError("Room is not a private battle");
+    }
+
+    if (room.ownerId !== userId) {
+      throw new BadRequestError("Only room owner can cancel the battle");
+    }
+
+    if (room.status === "ACTIVE") {
+      throw new BadRequestError("Active battle cannot be canceled from lobby");
+    }
+
+    if (room.status === "FINISHED" || room.status === "CANCELED") {
+      return room;
+    }
+
+    room.status = "CANCELED";
+    room.endedAt = new Date();
+    room.players = room.players.map((player) => ({
+      ...player,
+      hasLeft: true,
+      leftAt: player.leftAt ?? new Date(),
+    }));
+
+    await room.save();
+    return room;
+  }
+
+  async leavePrivateRoom(userId: string, roomId: string) {
+    const room = await this.roomRepository.findByIdOrCode(roomId);
+    if (!room) {
+      throw new NotFoundError("Battle room not found");
+    }
+
+    if (room.mode !== "PRIVATE") {
+      throw new BadRequestError("Room is not a private battle");
+    }
+
+    if (room.status === "ACTIVE") {
+      return this.markPlayerLeft(roomId, userId);
+    }
+
+    if (room.status === "FINISHED" || room.status === "CANCELED") {
+      return { room, shouldFinalize: false };
+    }
+
+    if (room.ownerId === userId) {
+      const canceledRoom = await this.cancelPrivateRoom(userId, roomId);
+      return { room: canceledRoom, shouldFinalize: false };
+    }
+
+    const player = room.players.find((item) => item.userId === userId);
+    if (!player || player.hasLeft) {
+      throw new BadRequestError("Player not found in room");
+    }
+
+    player.hasLeft = true;
+    player.leftAt = new Date();
+    room.status = "WAITING";
+
+    await room.save();
+    return { room, shouldFinalize: false };
+  }
+
   async getRoomById(roomId: string) {
-    const room = await this.roomRepository.findById(roomId);
+    const room = await this.roomRepository.findByIdOrCode(roomId);
     if (!room) {
       throw new NotFoundError("Battle room not found");
     }
@@ -346,8 +518,16 @@ export class BattleService {
     if (!winnerUserId) {
       const aHasAC = typeof aRuntime === "number";
       const bHasAC = typeof bRuntime === "number";
+      const aForfeited = playerA.hasLeft && !aHasAC;
+      const bForfeited = playerB.hasLeft && !bHasAC;
 
-      if (aHasAC && bHasAC) {
+      if (aForfeited && bForfeited) {
+        winnerUserId = null;
+      } else if (aForfeited) {
+        winnerUserId = bHasAC ? playerB.userId : null;
+      } else if (bForfeited) {
+        winnerUserId = aHasAC ? playerA.userId : null;
+      } else if (aHasAC && bHasAC) {
         if (aRuntime < bRuntime) winnerUserId = playerA.userId;
         else if (bRuntime < aRuntime) winnerUserId = playerB.userId;
         else winnerUserId = null;

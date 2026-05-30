@@ -41,6 +41,7 @@ int main() {
 };
 
 type Tab = "description" | "editorial" | "submissions";
+type ConsoleAction = "run" | "submit";
 const minDescriptionWidth = 340;
 const minEditorWidth = 520;
 const resizeHandleWidth = 12;
@@ -55,6 +56,7 @@ export function ProblemWorkspace() {
   const [code, setCode] = useState(starterCodeByLanguage.python);
   const [runResult, setRunResult] = useState<Submission | null>(null);
   const [submitResult, setSubmitResult] = useState<Submission | null>(null);
+  const [consoleAction, setConsoleAction] = useState<ConsoleAction | null>(null);
   const [descriptionWidth, setDescriptionWidth] = useState(520);
 
   const problemQuery = useQuery({
@@ -77,6 +79,7 @@ export function ProblemWorkspace() {
   const runMutation = useMutation({
     mutationFn: () => runSampleTests({ problemId, code, language }),
     onMutate: () => {
+      setConsoleAction("run");
       setRunResult(null);
     },
     onSuccess: (submission) => {
@@ -88,6 +91,7 @@ export function ProblemWorkspace() {
   const submitMutation = useMutation({
     mutationFn: () => createSubmission({ problemId, code, language }),
     onMutate: () => {
+      setConsoleAction("submit");
       setSubmitResult(null);
     },
     onSuccess: (submission) => {
@@ -99,6 +103,7 @@ export function ProblemWorkspace() {
   useEffect(() => {
     setRunResult(null);
     setSubmitResult(null);
+    setConsoleAction(null);
   }, [problemId]);
 
   const problem = problemQuery.data;
@@ -106,6 +111,28 @@ export function ProblemWorkspace() {
     submission?.status === "QUEUED" || submission?.status === "RUNNING";
   const runBusy = runMutation.isPending || isPendingSubmission(runResult);
   const submitBusy = submitMutation.isPending || isPendingSubmission(submitResult);
+  const consoleLabel =
+    consoleAction === "run" ? "Run" : consoleAction === "submit" ? "Submit" : "Console";
+  const consoleResult =
+    consoleAction === "run"
+      ? runResult
+      : consoleAction === "submit"
+        ? submitResult
+        : null;
+  const consoleBusy =
+    consoleAction === "run"
+      ? runBusy
+      : consoleAction === "submit"
+        ? submitBusy
+        : false;
+  const consoleError =
+    consoleAction === "run"
+      ? runMutation.error
+        ? getAxiosMessage(runMutation.error)
+        : ""
+      : consoleAction === "submit" && submitMutation.error
+        ? getAxiosMessage(submitMutation.error)
+        : "";
 
   const beginResize = (startEvent: ReactPointerEvent<HTMLButtonElement>) => {
     const workspace = startEvent.currentTarget.closest(
@@ -152,7 +179,7 @@ export function ProblemWorkspace() {
         } as CSSProperties
       }
     >
-      <Panel className="min-h-0 overflow-auto p-4">
+      <Panel className="problem-content-panel min-h-0 overflow-auto p-4">
         <div className="workspace-tabs sticky -top-4 z-10 -mx-4 -mt-4 mb-4 flex min-h-13 items-center gap-1 border-b border-[var(--line)] px-2.5">
           <Button variant="ghost" onClick={() => navigate("/practice")}>
             <ChevronLeft size={17} />
@@ -206,23 +233,28 @@ export function ProblemWorkspace() {
         <ProblemEditor
           code={code}
           language={language}
-          runResult={runResult}
-          submitResult={submitResult}
           runBusy={runBusy}
           submitBusy={submitBusy}
-          runError={runMutation.error ? getAxiosMessage(runMutation.error) : ""}
-          submitError={
-            submitMutation.error ? getAxiosMessage(submitMutation.error) : ""
-          }
           onCodeChange={setCode}
           onLanguageChange={(value) => {
             setLanguage(value);
             setCode(starterCodeByLanguage[value]);
             setRunResult(null);
             setSubmitResult(null);
+            setConsoleAction(null);
           }}
-          onRun={() => runMutation.mutate()}
-          onSubmit={() => submitMutation.mutate()}
+          consoleBusy={consoleBusy}
+          consoleError={consoleError}
+          consoleLabel={consoleLabel}
+          consoleResult={consoleResult}
+          onRun={() => {
+            setConsoleAction("run");
+            runMutation.mutate();
+          }}
+          onSubmit={() => {
+            setConsoleAction("submit");
+            submitMutation.mutate();
+          }}
         />
       </div>
     </section>

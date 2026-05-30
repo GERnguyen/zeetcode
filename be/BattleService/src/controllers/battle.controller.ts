@@ -1,9 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { BattleFactory } from "../factories/battle.factory";
-import {
-  CreatePrivateRoomDto,
-  JoinPrivateRoomDto,
-} from "../validators/battle.validator";
+import { CreatePrivateRoomDto } from "../validators/battle.validator";
 import { AuthenticatedRequest } from "../types/auth.types";
 import { ForbiddenError } from "../utils/errors/app.error";
 
@@ -40,13 +37,8 @@ export const joinPrivateRoomHandler = async (
     const authReq = req as AuthenticatedRequest;
     const userId = authReq.user?.id as string;
     const roomId = req.params.roomId as string;
-    const payload = req.body as JoinPrivateRoomDto;
 
-    const room = await battleService.joinPrivateRoom(
-      userId,
-      roomId,
-      payload.inviteCode,
-    );
+    const room = await battleService.joinPrivateRoom(userId, roomId);
 
     res.status(200).json({
       success: true,
@@ -78,6 +70,26 @@ export const getBattleRoomHandler = async (
       success: true,
       message: "Battle room fetched",
       data: room,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getCurrentBattleStateHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user?.id as string;
+    const state = await battleService.getCurrentState(userId);
+
+    res.status(200).json({
+      success: true,
+      message: "Current battle state fetched",
+      data: state,
     });
   } catch (error) {
     next(error);

@@ -6,8 +6,7 @@ export const createPrivateRoomSchema = z.object({
 });
 
 export const joinPrivateRoomSchema = z.object({
-  inviteCode: z.string().min(4, "Invite code is required"),
-});
+}).optional();
 
 export const historyQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

@@ -109,11 +109,11 @@ export async function updateUserById(
 
 export async function getUserEloById(
   id: string,
-): Promise<{ id: string; eloRating: number } | null> {
+): Promise<{ id: string; username: string; eloRating: number } | null> {
   try {
     const user = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, eloRating: true },
+      select: { id: true, username: true, eloRating: true },
     });
     return user;
   } catch (error) {

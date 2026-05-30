@@ -26,6 +26,7 @@ export interface IBattleProblem {
 
 export interface IBattlePlayer {
   userId: string;
+  username?: string;
   joinedAt: Date;
   leftAt?: Date;
   hasLeft?: boolean;
@@ -45,6 +46,7 @@ export interface IBattleRoom extends Document {
   status: BattleStatus;
   difficulty: BattleDifficulty;
   timerSeconds: number;
+  roomCode?: string;
   inviteCode?: string;
   ownerId?: string;
   problem?: IBattleProblem;
@@ -60,6 +62,7 @@ export interface IBattleRoom extends Document {
 const BattlePlayerSchema = new mongoose.Schema<IBattlePlayer>(
   {
     userId: { type: String, required: true },
+    username: { type: String, default: undefined },
     joinedAt: { type: Date, required: true },
     leftAt: { type: Date, default: undefined },
     hasLeft: { type: Boolean, default: false },
@@ -81,6 +84,7 @@ const BattleRoomSchema = new mongoose.Schema<IBattleRoom>(
     status: { type: String, required: true },
     difficulty: { type: String, required: true },
     timerSeconds: { type: Number, required: true },
+    roomCode: { type: String, default: undefined },
     inviteCode: { type: String, default: undefined },
     ownerId: { type: String, default: undefined },
     problem: {
@@ -109,6 +113,7 @@ const BattleRoomSchema = new mongoose.Schema<IBattleRoom>(
 
 BattleRoomSchema.index({ mode: 1, status: 1 });
 BattleRoomSchema.index({ "players.userId": 1, endedAt: -1 });
+BattleRoomSchema.index({ roomCode: 1 }, { unique: true, sparse: true });
 BattleRoomSchema.index({ inviteCode: 1 }, { unique: true, sparse: true });
 
 export const BattleRoom = mongoose.model<IBattleRoom>(

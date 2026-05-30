@@ -1,4 +1,10 @@
-import { AlertTriangle, CheckCircle2, Clock3, Loader2, XCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  Loader2,
+  XCircle,
+} from "lucide-react";
 import type { Submission } from "../../../types/domain";
 import { cn } from "../../../lib/utils/cn";
 

@@ -14,6 +14,7 @@ export type User = {
   email: string;
   eloRating?: number;
   profileVisibility: "PUBLIC" | "FOLLOWERS_ONLY" | "PRIVATE";
+  createdAt?: string;
 };
 
 export type ProblemSummary = {
@@ -63,4 +64,52 @@ export type AcceptedProblemsResponse = {
     totalSolved: number;
     byDifficulty: Record<Difficulty, number>;
   };
+};
+
+export type BattleResult = "WIN" | "LOSS" | "DRAW";
+export type BattleMode = "RANKED" | "PRIVATE";
+export type BattleStatus =
+  | "WAITING"
+  | "READY"
+  | "ACTIVE"
+  | "FINISHED"
+  | "CANCELED";
+
+export type BattlePlayer = {
+  userId: string;
+  username?: string;
+  joinedAt: string;
+  leftAt?: string;
+  hasLeft?: boolean;
+  bestRuntimeMs?: number;
+  lastVerdict?: Verdict | null;
+  lastSubmissionId?: string;
+  lastSubmittedAt?: string;
+  result?: BattleResult;
+  eloBefore?: number;
+  eloAfter?: number;
+  eloDelta?: number;
+};
+
+export type BattleRoom = {
+  id: string;
+  mode: BattleMode;
+  status: BattleStatus;
+  difficulty: Difficulty;
+  timerSeconds: number;
+  roomCode?: string;
+  inviteCode?: string;
+  ownerId?: string;
+  problem?: {
+    id: string;
+    title: string;
+    difficulty: Difficulty;
+  };
+  players: BattlePlayer[];
+  startedAt?: string;
+  endsAt?: string;
+  endedAt?: string;
+  winnerUserId?: string | null;
+  createdAt: string;
+  updatedAt: string;
 };

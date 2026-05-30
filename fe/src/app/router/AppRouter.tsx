@@ -1,15 +1,20 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import { AuthEmailAction } from "../../components/features/auth/AuthEmailAction";
 import { AuthScreen } from "../../components/features/auth/AuthScreen";
+import { BattlePage } from "../../components/features/battle/BattlePage";
+import { BattleRoomPage } from "../../components/features/battle/BattleRoomPage";
+import { PrivateBattleRoomPage } from "../../components/features/battle/PrivateBattleRoomPage";
+import { HistoryPage } from "../../components/features/history/HistoryPage";
 import { AppShell } from "../../components/features/layout/AppShell";
 import { PracticeHome } from "../../components/features/practice/PracticeHome";
 import { ProblemWorkspace } from "../../components/features/practice/ProblemWorkspace";
 import { ProfilePage } from "../../components/features/profile/ProfilePage";
-import { Placeholder } from "../../components/ui/Placeholder";
 import { useMe } from "../../hooks/useMe";
 import { useAuthStore } from "../../stores/authStore";
 
 export function AppRouter() {
+  const location = useLocation();
   const accessToken = useAuthStore((state) => state.accessToken);
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
@@ -28,6 +33,17 @@ export function AppRouter() {
     }
   }, [meQuery.isError, logout]);
 
+  if (location.pathname.startsWith("/auth/")) {
+    return (
+      <Routes>
+        <Route path="/auth/confirm" element={<AuthEmailAction />} />
+        <Route path="/auth/confirm-change" element={<AuthEmailAction />} />
+        <Route path="/auth/reset-password" element={<AuthEmailAction />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
+  }
+
   if (!accessToken) {
     return <AuthScreen />;
   }
@@ -38,8 +54,10 @@ export function AppRouter() {
         <Route path="/" element={<Navigate to="/practice" replace />} />
         <Route path="/practice" element={<PracticeHome />} />
         <Route path="/practice/:problemId" element={<ProblemWorkspace />} />
-        <Route path="/battle" element={<Placeholder title="Battle room" />} />
-        <Route path="/history" element={<Placeholder title="Match history" />} />
+        <Route path="/battle" element={<BattlePage />} />
+        <Route path="/battle/room/:roomId" element={<BattleRoomPage />} />
+        <Route path="/battle/private/:roomId" element={<PrivateBattleRoomPage />} />
+        <Route path="/history" element={<HistoryPage />} />
         <Route path="/profile" element={<ProfilePage user={user} />} />
       </Route>
     </Routes>

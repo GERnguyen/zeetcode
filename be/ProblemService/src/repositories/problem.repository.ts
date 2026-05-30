@@ -52,17 +52,51 @@ export class ProblemRepository implements IProblemRepository {
       filter.$or = [{ title: regex }, { tags: regex }, { category: regex }];
     }
 
+    const sortDirection = query.order === "asc" ? 1 : -1;
     const sort: Record<string, 1 | -1> = {
-      [query.sort]: query.order === "asc" ? 1 : -1,
+      [query.sort]: sortDirection,
     };
     const skip = (query.page - 1) * query.limit;
 
+    const problemQuery =
+      query.sort === "difficulty"
+        ? Problem.aggregate([
+            { $match: filter },
+            {
+              $addFields: {
+                difficultyRank: {
+                  $switch: {
+                    branches: [
+                      { case: { $eq: ["$difficulty", "easy"] }, then: 1 },
+                      { case: { $eq: ["$difficulty", "medium"] }, then: 2 },
+                      { case: { $eq: ["$difficulty", "hard"] }, then: 3 },
+                    ],
+                    default: 4,
+                  },
+                },
+              },
+            },
+            { $sort: { difficultyRank: sortDirection, title: 1 } },
+            { $skip: skip },
+            { $limit: query.limit },
+            {
+              $project: {
+                title: 1,
+                difficulty: 1,
+                category: 1,
+                tags: 1,
+                isForBattle: 1,
+              },
+            },
+          ])
+        : Problem.find(filter)
+            .select("title difficulty category tags isForBattle")
+            .sort(sort)
+            .skip(skip)
+            .limit(query.limit);
+
     const [problems, total, groupedStats] = await Promise.all([
-      Problem.find(filter)
-        .select("title difficulty category tags isForBattle")
-        .sort(sort)
-        .skip(skip)
-        .limit(query.limit),
+      problemQuery,
       Problem.countDocuments(filter),
       Problem.aggregate([
         { $match: query.practice ? { isForBattle: false } : {} },

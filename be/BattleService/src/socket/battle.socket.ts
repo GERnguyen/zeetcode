@@ -143,13 +143,15 @@ const pollSubmissionVerdict = async (
     return;
   }
 
-  await battleService.recordVerdict(
+  const updatedRoom = await battleService.recordVerdict(
     roomId,
     userId,
     submission.verdict,
     submission.judgeMeta?.runtimeMs,
     submissionId,
   );
+
+  emitToRoom(roomId, "battle:room-updated", updatedRoom);
 
   emitToRoomExceptUser(roomId, userId, "battle:opponent-verdict", {
     roomId,
@@ -238,54 +240,135 @@ export const initBattleSocket = (
     registerUserSocket(userData.userId, socket.id);
 
     socket.on("ranked:enqueue", async () => {
-      const profile = await battleService.enqueueRanked(userData.userId);
-      socket.emit("battle:ranked-queued", {
-        userId: userData.userId,
-        eloRating: profile.eloRating,
-      });
+      try {
+        const profile = await battleService.enqueueRanked(userData.userId);
+        socket.emit("battle:ranked-queued", {
+          userId: userData.userId,
+          eloRating: profile.eloRating,
+        });
+      } catch (error: any) {
+        socket.emit("battle:error", {
+          message: error.message || "Failed to enter ranked queue",
+        });
+      }
     });
 
     socket.on("ranked:dequeue", async () => {
-      await battleService.dequeueRanked(userData.userId);
-      socket.emit("battle:ranked-dequeued", { userId: userData.userId });
+      try {
+        await battleService.dequeueRanked(userData.userId);
+        socket.emit("battle:ranked-dequeued", { userId: userData.userId });
+      } catch (error: any) {
+        socket.emit("battle:error", {
+          message: error.message || "Failed to leave ranked queue",
+        });
+      }
     });
 
     socket.on(
       "private:create",
       async (payload: { difficulty: string; timerMinutes?: number }) => {
-        const room = await battleService.createPrivateRoom(userData.userId, {
-          difficulty: payload.difficulty as BattleDifficulty,
-          timerMinutes: payload.timerMinutes,
-        });
-        joinUserSocketsToRoom(userData.userId, room.id);
-        socket.emit("battle:private-created", room);
+        try {
+          const room = await battleService.createPrivateRoom(userData.userId, {
+            difficulty: payload.difficulty as BattleDifficulty,
+            timerMinutes: payload.timerMinutes,
+          });
+          joinUserSocketsToRoom(userData.userId, room.id);
+          socket.emit("battle:private-created", room);
+        } catch (error: any) {
+          socket.emit("battle:error", {
+            message: error.message || "Failed to create private room",
+          });
+        }
       },
     );
 
     socket.on(
       "private:join",
-      async (payload: { roomId: string; inviteCode: string }) => {
-        const room = await battleService.joinPrivateRoom(
-          userData.userId,
-          payload.roomId,
-          payload.inviteCode,
-        );
-        joinUserSocketsToRoom(userData.userId, room.id);
-        emitToRoom(room.id, "battle:player-joined", {
-          roomId: room.id,
-          userId: userData.userId,
-        });
-        socket.emit("battle:private-joined", room);
+      async (payload: { roomId: string }) => {
+        try {
+          const room = await battleService.joinPrivateRoom(
+            userData.userId,
+            payload.roomId,
+          );
+          joinUserSocketsToRoom(userData.userId, room.id);
+          emitToRoom(room.id, "battle:room-updated", room);
+          socket.emit("battle:private-joined", room);
+        } catch (error: any) {
+          socket.emit("battle:error", {
+            message: error.message || "Failed to join private room",
+          });
+        }
       },
     );
 
     socket.on("private:start", async (payload: { roomId: string }) => {
-      const room = await battleService.startPrivateRoom(
-        userData.userId,
-        payload.roomId,
-      );
-      emitToRoom(room.id, "battle:room-started", room);
-      await startRoomTimer(room, battleService);
+      try {
+        const room = await battleService.startPrivateRoom(
+          userData.userId,
+          payload.roomId,
+        );
+        emitToRoom(room.id, "battle:room-started", room);
+        await startRoomTimer(room, battleService);
+      } catch (error: any) {
+        socket.emit("battle:error", {
+          message: error.message || "Failed to start private room",
+        });
+      }
+    });
+
+    socket.on("private:cancel", async (
+      payload: { roomId: string },
+      ack?: (response: { success: boolean; message?: string }) => void,
+    ) => {
+      try {
+        const room = await battleService.cancelPrivateRoom(
+          userData.userId,
+          payload.roomId,
+        );
+        stopRoomTimer(room.id);
+        emitToRoom(room.id, "battle:room-canceled", room);
+        ack?.({ success: true });
+      } catch (error: any) {
+        ack?.({
+          success: false,
+          message: error.message || "Failed to cancel private room",
+        });
+        socket.emit("battle:error", {
+          message: error.message || "Failed to cancel private room",
+        });
+      }
+    });
+
+    socket.on("private:leave", async (
+      payload: { roomId: string },
+      ack?: (response: { success: boolean; message?: string }) => void,
+    ) => {
+      try {
+        const result = await battleService.leavePrivateRoom(
+          userData.userId,
+          payload.roomId,
+        );
+        socket.leave(result.room.id);
+        userCurrentRoom.delete(userData.userId);
+
+        if (result.room.status === "CANCELED") {
+          emitToRoom(result.room.id, "battle:room-canceled", result.room);
+          ack?.({ success: true });
+          return;
+        }
+
+        emitToRoom(result.room.id, "battle:room-updated", result.room);
+        socket.emit("battle:private-left", result.room);
+        ack?.({ success: true });
+      } catch (error: any) {
+        ack?.({
+          success: false,
+          message: error.message || "Failed to leave private room",
+        });
+        socket.emit("battle:error", {
+          message: error.message || "Failed to leave private room",
+        });
+      }
     });
 
     socket.on("room:join", async (payload: { roomId: string }) => {
@@ -361,15 +444,21 @@ export const initBattleSocket = (
         payload.roomId,
         userData.userId,
       );
+      const leavingPlayer = result.room.players.find(
+        (player) => player.userId === userData.userId,
+      );
 
       if (result.shouldFinalize) {
         const finishedRoom = await battleService.finalizeRoom(payload.roomId);
         stopRoomTimer(payload.roomId);
         emitToRoom(payload.roomId, "battle:result", finishedRoom);
       } else {
+        emitToRoom(result.room.id, "battle:room-updated", result.room);
         emitToRoomExceptUser(payload.roomId, userData.userId, "battle:opponent-left", {
           roomId: payload.roomId,
           userId: userData.userId,
+          hadAccepted: typeof leavingPlayer?.bestRuntimeMs === "number",
+          forfeited: typeof leavingPlayer?.bestRuntimeMs !== "number",
         });
       }
 
@@ -381,23 +470,8 @@ export const initBattleSocket = (
       unregisterUserSocket(userData.userId, socket.id);
       if (userSockets.has(userData.userId)) return;
 
-      const roomId = userCurrentRoom.get(userData.userId);
-      if (!roomId) return;
       try {
-        const result = await battleService.markPlayerLeft(
-          roomId,
-          userData.userId,
-        );
-        if (result.shouldFinalize) {
-          const finishedRoom = await battleService.finalizeRoom(roomId);
-          stopRoomTimer(roomId);
-          emitToRoom(roomId, "battle:result", finishedRoom);
-        } else {
-          emitToRoomExceptUser(roomId, userData.userId, "battle:opponent-left", {
-            roomId,
-            userId: userData.userId,
-          });
-        }
+        await battleService.dequeueRanked(userData.userId);
       } catch (error) {
         logger.error("Failed to handle disconnect", error);
       } finally {

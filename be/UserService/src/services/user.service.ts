@@ -165,6 +165,68 @@ const consumeEmailToken = async (token: string, purpose: EmailTokenPurpose) => {
 const buildEmailLink = (path: string, token: string) =>
   `${serverConfig.FRONTEND_URL}${path}?token=${token}`;
 
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+const buildZeetcodeEmail = ({
+  title,
+  preview,
+  body,
+  ctaLabel,
+  ctaUrl,
+}: {
+  title: string;
+  preview: string;
+  body: string;
+  ctaLabel: string;
+  ctaUrl: string;
+}) => {
+  const safeTitle = escapeHtml(title);
+  const safePreview = escapeHtml(preview);
+  const safeBody = escapeHtml(body);
+  const safeCtaLabel = escapeHtml(ctaLabel);
+  const safeCtaUrl = escapeHtml(ctaUrl);
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${safeTitle}</title>
+  </head>
+  <body style="margin:0;background:#101318;color:#f2f3f5;font-family:Inter,Segoe UI,Arial,sans-serif;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${safePreview}</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:radial-gradient(circle at 20% 0%, rgba(69,214,154,0.2), transparent 34%), #101318;padding:32px 14px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;border:1px solid #41454e;border-radius:18px;background:#1a1d23;box-shadow:0 24px 70px rgba(0,0,0,0.35);overflow:hidden;">
+            <tr>
+              <td style="padding:26px 28px 12px;">
+                <div style="display:inline-block;border-radius:12px;background:#45d69a;color:#0b1913;font-weight:900;padding:8px 12px;letter-spacing:0;">Zeetcode</div>
+                <h1 style="margin:22px 0 10px;font-size:30px;line-height:1.15;color:#f2f3f5;">${safeTitle}</h1>
+                <p style="margin:0;color:#a2a7b0;font-size:16px;line-height:1.6;">${safeBody}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:22px 28px 28px;">
+                <a href="${safeCtaUrl}" style="display:inline-block;border-radius:14px;background:#45d69a;color:#0b1913;text-decoration:none;font-size:16px;font-weight:900;padding:14px 20px;box-shadow:0 0 28px rgba(69,214,154,0.24);">${safeCtaLabel}</a>
+                <p style="margin:22px 0 0;color:#a2a7b0;font-size:13px;line-height:1.5;">If the button does not work, copy this link into your browser:</p>
+                <p style="margin:8px 0 0;word-break:break-all;color:#45d69a;font-size:13px;line-height:1.5;">${safeCtaUrl}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+};
+
 export const registerUser = async (payload: RegisterUserDto) => {
   const hashedPassword = await bcrypt.hash(
     payload.password,
@@ -186,8 +248,14 @@ export const registerUser = async (payload: RegisterUserDto) => {
 
     await sendEmail({
       to: user.email,
-      subject: "Confirm your account",
-      html: `<p>Click the link to confirm your account:</p><p><a href="${confirmLink}">${confirmLink}</a></p>`,
+      subject: "Verify your Zeetcode account",
+      html: buildZeetcodeEmail({
+        title: "Verify your email",
+        preview: "Confirm your Zeetcode account to start practicing.",
+        body: "You are one click away from entering Zeetcode. Verify this email address to activate your account.",
+        ctaLabel: "Verify email",
+        ctaUrl: confirmLink,
+      }),
     });
 
     return {
@@ -416,8 +484,14 @@ export const changePassword = async (
 
   await sendEmail({
     to: user.email,
-    subject: "Confirm your password change",
-    html: `<p>Click the link to confirm your password change:</p><p><a href="${confirmLink}">${confirmLink}</a></p>`,
+    subject: "Confirm your Zeetcode password change",
+    html: buildZeetcodeEmail({
+      title: "Confirm password change",
+      preview: "Confirm this request to update your Zeetcode password.",
+      body: "A password change was requested for your Zeetcode account. Confirm this action to finish updating your password.",
+      ctaLabel: "Confirm change",
+      ctaUrl: confirmLink,
+    }),
   });
 };
 
@@ -455,8 +529,14 @@ export const requestPasswordReset = async (email: string) => {
 
   await sendEmail({
     to: user.email,
-    subject: "Reset your password",
-    html: `<p>Click the link to reset your password:</p><p><a href="${resetLink}">${resetLink}</a></p>`,
+    subject: "Reset your Zeetcode password",
+    html: buildZeetcodeEmail({
+      title: "Reset your password",
+      preview: "Choose a new password for your Zeetcode account.",
+      body: "Use this secure link to choose a new password. If you did not request a reset, you can ignore this email.",
+      ctaLabel: "Reset password",
+      ctaUrl: resetLink,
+    }),
   });
 };
 

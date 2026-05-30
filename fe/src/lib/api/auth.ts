@@ -31,9 +31,67 @@ export async function registerUser(payload: {
   return response.data.data;
 }
 
+export async function confirmSignup(token: string) {
+  const response = await axios.post<{ message: string }>(`${USER_API}/auth/confirm`, {
+    token,
+  });
+  return response.data;
+}
+
+export async function confirmPasswordChange(token: string) {
+  const response = await axios.post<{ message: string }>(
+    `${USER_API}/auth/confirm-change`,
+    { token },
+  );
+  return response.data;
+}
+
+export async function resetPassword(payload: {
+  token: string;
+  newPassword: string;
+}) {
+  const response = await axios.post<{ message: string }>(
+    `${USER_API}/auth/password/reset`,
+    payload,
+  );
+  return response.data;
+}
+
+export async function requestPasswordReset(payload: { email: string }) {
+  const response = await axios.post<{ message: string }>(
+    `${USER_API}/auth/password/reset/request`,
+    payload,
+  );
+  return response.data;
+}
+
 export async function getMe() {
   const response = await axios.get<{ data: User }>(`${USER_API}/users/me`, {
     headers: authHeader(),
   });
   return response.data.data;
+}
+
+export async function updateMe(payload: {
+  username?: string;
+  profileVisibility?: User["profileVisibility"];
+}) {
+  const response = await axios.patch<{ data: User }>(
+    `${USER_API}/users/me`,
+    payload,
+    { headers: authHeader() },
+  );
+  return response.data.data;
+}
+
+export async function requestPasswordChange(payload: {
+  currentPassword: string;
+  newPassword: string;
+}) {
+  const response = await axios.post<{ message: string }>(
+    `${USER_API}/users/me/change-password`,
+    payload,
+    { headers: authHeader() },
+  );
+  return response.data;
 }
