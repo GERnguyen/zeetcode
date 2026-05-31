@@ -1,6 +1,27 @@
 node_modules/
 **/node_modules/
 
+.DS_Store
+**/.DS_Store
+
+/package.json
+/package-lock.json
+
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
 be/roadmap.html
 be/UserService/REPORT.html
 be/days-roadmap/*.html
+
+Postman_Collection.json
+battle-idea.md
+
+docs/
+scripts
+leetcode-batch-report.json
+battle-feature-spec.html

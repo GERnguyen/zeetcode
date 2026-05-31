@@ -1,30 +1,15 @@
 import { prisma } from "../config/db.config";
 import logger from "../config/logger.config";
 import { ConflictError, InternalServerError } from "../utils/errors/app.error";
-import { FollowStatus, Prisma, User } from "../generated/prisma/client";
+import { Prisma, User } from "../generated/prisma/client";
 
 export interface ListUsersOptions {
   skip?: number;
   take?: number;
 }
 
-export interface UserRelationsOptions {
-  followStatus?: FollowStatus;
-}
-
 export type UserPublic = Prisma.UserGetPayload<{
   select: typeof userPublicSelect;
-}>;
-
-export type UserWithRelations = Prisma.UserGetPayload<{
-  include: {
-    followers: {
-      include: { follower: { select: typeof userPublicSelect } };
-    };
-    following: {
-      include: { following: { select: typeof userPublicSelect } };
-    };
-  };
 }>;
 
 const userPublicSelect = {
@@ -33,6 +18,7 @@ const userPublicSelect = {
   email: true,
   role: true,
   profileVisibility: true,
+  eloRating: true,
   createdAt: true,
 };
 
@@ -54,22 +40,6 @@ const isRecordNotFound = (error: unknown) =>
 const isUniqueConstraint = (error: unknown) =>
   isPrismaKnownError(error) && error.code === "P2002";
 
-const buildUserRelationsInclude = (options: UserRelationsOptions = {}) => {
-  const { followStatus } = options;
-  const followersWhere = followStatus ? { status: followStatus } : undefined;
-
-  return {
-    followers: {
-      where: followersWhere,
-      include: { follower: { select: userPublicSelect } },
-    },
-    following: {
-      where: followersWhere,
-      include: { following: { select: userPublicSelect } },
-    },
-  };
-};
-
 export async function createUser(data: Prisma.UserCreateInput): Promise<User> {
   try {
     return await prisma.user.create({ data });
@@ -90,25 +60,6 @@ export async function findUserById(id: string): Promise<User | null> {
     return await prisma.user.findUnique({ where: { id } });
   } catch (error) {
     logger.error("Failed to find user by id", { error, id });
-    throw new InternalServerError("Failed to find user by id");
-  }
-}
-
-export async function findUserByIdWithRelations(
-  id: string,
-  options: UserRelationsOptions = {},
-): Promise<UserWithRelations | null> {
-  try {
-    return await prisma.user.findUnique({
-      where: { id },
-      include: buildUserRelationsInclude(options),
-    });
-  } catch (error) {
-    logger.error("Failed to find user with relations by id", {
-      error,
-      id,
-      options,
-    });
     throw new InternalServerError("Failed to find user by id");
   }
 }
@@ -138,29 +89,6 @@ export async function listUsers(
   }
 }
 
-export async function listUsersWithRelations(
-  listOptions: ListUsersOptions = {},
-  relationOptions: UserRelationsOptions = {},
-): Promise<UserWithRelations[]> {
-  const { skip = 0, take = 20 } = listOptions;
-  try {
-    return await prisma.user.findMany({
-      skip,
-      take,
-      orderBy: { createdAt: "desc" },
-      include: buildUserRelationsInclude(relationOptions),
-    });
-  } catch (error) {
-    logger.error("Failed to list users with relations", {
-      error,
-      skip,
-      take,
-      relationOptions,
-    });
-    throw new InternalServerError("Failed to list users");
-  }
-}
-
 export async function updateUserById(
   id: string,
   data: Prisma.UserUpdateInput,
@@ -176,6 +104,41 @@ export async function updateUserById(
     }
     logger.error("Failed to update user", { error, id });
     throw new InternalServerError("Failed to update user");
+  }
+}
+
+export async function getUserEloById(
+  id: string,
+): Promise<{ id: string; username: string; eloRating: number } | null> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, username: true, eloRating: true },
+    });
+    return user;
+  } catch (error) {
+    logger.error("Failed to get user elo", { error, id });
+    throw new InternalServerError("Failed to get user elo");
+  }
+}
+
+export async function updateUserEloById(
+  id: string,
+  delta: number,
+): Promise<{ id: string; eloRating: number } | null> {
+  try {
+    const user = await prisma.user.update({
+      where: { id },
+      data: { eloRating: { increment: delta } },
+      select: { id: true, eloRating: true },
+    });
+    return user;
+  } catch (error) {
+    if (isRecordNotFound(error)) {
+      return null;
+    }
+    logger.error("Failed to update user elo", { error, id, delta });
+    throw new InternalServerError("Failed to update user elo");
   }
 }
 

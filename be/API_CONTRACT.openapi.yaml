@@ -1,0 +1,1799 @@
+openapi: 3.1.0
+info:
+  title: LeetCode Clone Backend API Contract
+  version: 1.0.0
+  summary: Consolidated API contract for ProblemService, SubmissionService, EvaluationService, UserService, and BattleService.
+  description: |
+    This contract is generated from current implementation in the backend services.
+
+    Contract style:
+    - Single consolidated spec for FE tracking and integration.
+    - Service namespaced paths to avoid collisions in microservice routes.
+    - Standardized response envelope where implemented:
+      - Success: { success: true, message?: string, data?: any }
+      - Error:   { success: false, message: string, error?: any }
+
+    Service path mapping:
+    - ProblemService routes are exposed under /problem-service/api/v1/...
+    - SubmissionService routes are exposed under /submission-service/api/v1/...
+    - EvaluationService routes are exposed under /evaluation-service/api/v1/...
+    - UserService routes are exposed under /user-service/api/v1/...
+    - BattleService routes are exposed under /battle-service/api/v1/...
+
+    Socket transport:
+    - BattleService uses Socket.IO for realtime battle flows. This is documented
+      under the vendor extension x-socket-io because it is not HTTP-based.
+
+    Notes:
+    - This file is intended for FE development and API tracking.
+    - It can be split into per-service files later if needed for codegen pipelines.
+
+servers:
+  - url: http://localhost:3000
+    description: ProblemService local
+  - url: http://localhost:3001
+    description: SubmissionService local
+  - url: http://localhost:3002
+    description: EvaluationService local
+  - url: http://localhost:3003
+    description: UserService local
+  - url: http://localhost:3004
+    description: BattleService local
+
+tags:
+  - name: ProblemService
+  - name: SubmissionService
+  - name: EvaluationService
+  - name: UserService.Auth
+  - name: UserService.User
+  - name: BattleService
+  - name: Health
+
+x-socket-io:
+  battle-service:
+    auth:
+      description: JWT access token is required in socket handshake.
+      handshake:
+        - auth.token = "Bearer <ACCESS_TOKEN>"
+        - OR header "Authorization: Bearer <ACCESS_TOKEN>"
+    clientToServerEvents:
+      - ranked:enqueue
+      - ranked:dequeue
+      - private:create
+      - private:join
+      - private:start
+      - room:join
+      - room:submit
+      - room:leave
+    serverToClientEvents:
+      - battle:ranked-queued
+      - battle:ranked-dequeued
+      - battle:private-created
+      - battle:private-joined
+      - battle:player-joined
+      - battle:room-started
+      - battle:room-joined
+      - battle:submitted
+      - battle:opponent-submitted
+      - battle:verdict
+      - battle:opponent-verdict
+      - battle:timer
+      - battle:match-found
+      - battle:opponent-left
+      - battle:result
+      - battle:error
+
+paths:
+  /problem-service/api/v1/ping:
+    get:
+      tags: [Health, ProblemService]
+      summary: ProblemService ping
+      operationId: problemServicePing
+      responses:
+        "200":
+          description: Pong response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PingJsonResponse"
+
+  /problem-service/api/v1/ping/health:
+    get:
+      tags: [Health, ProblemService]
+      summary: ProblemService health check
+      operationId: problemServiceHealth
+      responses:
+        "200":
+          description: Service healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: OK
+
+  /problem-service/api/v1/problems:
+    post:
+      tags: [ProblemService]
+      summary: Create new problem
+      operationId: createProblem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProblemRequest"
+      responses:
+        "201":
+          description: Problem created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemSingleResponse"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+    get:
+      tags: [ProblemService]
+      summary: Get all problems
+      operationId: getAllProblems
+      responses:
+        "200":
+          description: Problem list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemListResponse"
+
+  /problem-service/api/v1/problems/batch:
+    post:
+      tags: [ProblemService]
+      summary: Get multiple problems by ids
+      operationId: getProblemsByIds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchProblemLookupRequest"
+      responses:
+        "200":
+          description: Problems retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemArrayResponse"
+        "400":
+          description: Invalid ids payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /problem-service/api/v1/problems/search:
+    get:
+      tags: [ProblemService]
+      summary: Search problems by query text
+      operationId: searchProblems
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: Search string
+      responses:
+        "200":
+          description: Matching problems
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemArrayResponse"
+        "400":
+          description: Invalid search query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /problem-service/api/v1/problems/difficulty/{difficulty}:
+    get:
+      tags: [ProblemService]
+      summary: Filter problems by difficulty
+      operationId: findProblemsByDifficulty
+      parameters:
+        - in: path
+          name: difficulty
+          required: true
+          schema:
+            $ref: "#/components/schemas/ProblemDifficulty"
+      responses:
+        "200":
+          description: Filtered problems
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemArrayResponse"
+        "400":
+          description: Invalid difficulty
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /problem-service/api/v1/problems/{id}:
+    get:
+      tags: [ProblemService]
+      summary: Get problem by id
+      operationId: getProblemById
+      parameters:
+        - $ref: "#/components/parameters/ProblemIdPath"
+      responses:
+        "200":
+          description: Problem detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemSingleResponse"
+        "404":
+          description: Problem not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+    put:
+      tags: [ProblemService]
+      summary: Update problem
+      operationId: updateProblem
+      parameters:
+        - $ref: "#/components/parameters/ProblemIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProblemRequest"
+      responses:
+        "200":
+          description: Problem updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemSingleResponse"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+    delete:
+      tags: [ProblemService]
+      summary: Delete problem
+      operationId: deleteProblem
+      parameters:
+        - $ref: "#/components/parameters/ProblemIdPath"
+      responses:
+        "200":
+          description: Problem deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicSuccessMessageResponse"
+        "404":
+          description: Problem not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /submission-service/api/v1/submissions:
+    post:
+      tags: [SubmissionService]
+      summary: Create submission
+      operationId: createSubmission
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSubmissionRequest"
+      responses:
+        "201":
+          description: Submission created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmissionSingleResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /submission-service/api/v1/submissions/me/accepted-problems:
+    get:
+      tags: [SubmissionService]
+      summary: Get all AC problems for current user
+      operationId: getMyAcceptedProblems
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Accepted problem ids and details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcceptedProblemsResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /submission-service/api/v1/submissions/{id}:
+    get:
+      tags: [SubmissionService]
+      summary: Get submission by id
+      operationId: getSubmissionById
+      parameters:
+        - $ref: "#/components/parameters/SubmissionIdPath"
+      responses:
+        "200":
+          description: Submission detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmissionSingleResponse"
+        "404":
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+    delete:
+      tags: [SubmissionService]
+      summary: Delete submission
+      operationId: deleteSubmissionById
+      parameters:
+        - $ref: "#/components/parameters/SubmissionIdPath"
+      responses:
+        "200":
+          description: Submission deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicSuccessMessageResponse"
+        "404":
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /submission-service/api/v1/submissions/problem/{problemId}:
+    get:
+      tags: [SubmissionService]
+      summary: Get all submissions for one problem
+      operationId: getSubmissionsByProblemId
+      parameters:
+        - $ref: "#/components/parameters/ProblemIdPath"
+      responses:
+        "200":
+          description: Submission list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmissionArrayResponse"
+        "400":
+          description: Invalid problem id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /submission-service/api/v1/submissions/{id}/status:
+    patch:
+      tags: [SubmissionService]
+      summary: Update submission evaluation status
+      description: Internal endpoint used by EvaluationService worker.
+      operationId: updateSubmissionStatus
+      parameters:
+        - $ref: "#/components/parameters/SubmissionIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSubmissionStatusRequest"
+      responses:
+        "200":
+          description: Submission status updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmissionSingleResponse"
+        "400":
+          description: Invalid status payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+        "404":
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /evaluation-service/api/v1/ping:
+    get:
+      tags: [Health, EvaluationService]
+      summary: EvaluationService ping
+      operationId: evaluationServicePing
+      responses:
+        "200":
+          description: Pong response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PingJsonResponse"
+
+  /evaluation-service/api/v1/ping/health:
+    get:
+      tags: [Health, EvaluationService]
+      summary: EvaluationService health check
+      operationId: evaluationServiceHealth
+      responses:
+        "200":
+          description: Service healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: OK
+
+  /user-service/api/v1/ping:
+    get:
+      tags: [Health, UserService.User]
+      summary: UserService ping
+      operationId: userServicePing
+      responses:
+        "200":
+          description: Pong response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PingJsonResponse"
+
+  /user-service/api/v1/ping/health:
+    get:
+      tags: [Health, UserService.User]
+      summary: UserService health check
+      operationId: userServiceHealth
+      responses:
+        "200":
+          description: Service healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: OK
+
+  /user-service/api/v1/auth/register:
+    post:
+      tags: [UserService.Auth]
+      summary: Register user
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterUserRequest"
+      responses:
+        "201":
+          description: Registered successfully (email verification pending)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterUserResponse"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+        "409":
+          description: User/email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /user-service/api/v1/auth/login:
+    post:
+      tags: [UserService.Auth]
+      summary: Login user
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginUserRequest"
+      responses:
+        "200":
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginUserResponse"
+        "401":
+          description: Invalid credentials/token state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /user-service/api/v1/auth/refresh:
+    post:
+      tags: [UserService.Auth]
+      summary: Refresh auth tokens
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+      responses:
+        "200":
+          description: New token pair
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshTokenResponse"
+        "401":
+          description: Invalid/expired/revoked refresh token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /user-service/api/v1/auth/logout:
+    post:
+      tags: [UserService.Auth]
+      summary: Logout user (revoke refresh token)
+      operationId: logoutUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+      responses:
+        "200":
+          description: Logout success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicSuccessMessageResponse"
+
+  /user-service/api/v1/auth/confirm:
+    post:
+      tags: [UserService.Auth]
+      summary: Confirm signup email token
+      operationId: confirmSignup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmTokenRequest"
+      responses:
+        "200":
+          description: Email confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicSuccessMessageResponse"
+        "400":
+          description: Invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /user-service/api/v1/auth/confirm-change:
+    post:
+      tags: [UserService.Auth]
+      summary: Confirm password change token
+      operationId: confirmPasswordChange
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmTokenRequest"
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicSuccessMessageResponse"
+
+  /user-service/api/v1/auth/password/reset/request:
+    post:
+      tags: [UserService.Auth]
+      summary: Request reset password email
+      operationId: requestPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestPasswordResetRequest"
+      responses:
+        "200":
+          description: Request accepted (safe response)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicSuccessMessageResponse"
+
+  /user-service/api/v1/auth/password/reset:
+    post:
+      tags: [UserService.Auth]
+      summary: Reset password by token
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Password reset success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicSuccessMessageResponse"
+        "400":
+          description: Invalid token or payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /user-service/api/v1/users/me:
+    get:
+      tags: [UserService.User]
+      summary: Get current user profile
+      operationId: getMyProfile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Profile data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicUserResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+    patch:
+      tags: [UserService.User]
+      summary: Update current user profile
+      operationId: updateMyProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicUserResponse"
+        "400":
+          description: Invalid update payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /user-service/api/v1/users/me/change-password:
+    post:
+      tags: [UserService.User]
+      summary: Request password change confirmation
+      operationId: changePassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: Confirmation link sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicSuccessMessageResponse"
+        "401":
+          description: Unauthorized or invalid current password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /user-service/api/v1/users/{id}/elo:
+    get:
+      tags: [UserService.User]
+      summary: Get user Elo (internal)
+      operationId: getUserElo
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - in: header
+          name: x-service-token
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User Elo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserEloResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+    patch:
+      tags: [UserService.User]
+      summary: Update user Elo (internal)
+      operationId: updateUserElo
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - in: header
+          name: x-service-token
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserEloRequest"
+      responses:
+        "200":
+          description: User Elo updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserEloResponse"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /battle-service/api/v1/battles/me/history:
+    get:
+      tags: [BattleService]
+      summary: Get current user battle history
+      operationId: getBattleHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Battle history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BattleHistoryResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /battle-service/api/v1/battles/private:
+    post:
+      tags: [BattleService]
+      summary: Create a private battle room
+      operationId: createPrivateBattleRoom
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePrivateBattleRoomRequest"
+      responses:
+        "201":
+          description: Private room created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BattleRoomResponse"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /battle-service/api/v1/battles/private/{roomId}/join:
+    post:
+      tags: [BattleService]
+      summary: Join a private battle room
+      operationId: joinPrivateBattleRoom
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinPrivateBattleRoomRequest"
+      responses:
+        "200":
+          description: Joined room
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BattleRoomResponse"
+        "400":
+          description: Invalid room or invite code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+  /battle-service/api/v1/battles/{roomId}:
+    get:
+      tags: [BattleService]
+      summary: Get battle room by id
+      operationId: getBattleRoom
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Battle room details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BattleRoomResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BasicErrorResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ProblemIdPath:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    SubmissionIdPath:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        minLength: 1
+
+  schemas:
+    PingJsonResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Pong!
+      required: [message]
+
+    ProblemDifficulty:
+      type: string
+      enum: [easy, medium, hard]
+
+    ProblemTestCase:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Testcase id as generated by Mongo subdocument.
+        input:
+          type: string
+        output:
+          type: string
+      required: [input, output]
+
+    Problem:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        difficulty:
+          $ref: "#/components/schemas/ProblemDifficulty"
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        isForBattle:
+          type: boolean
+          default: false
+        editorial:
+          $ref: "#/components/schemas/ProblemEditorial"
+        testcases:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProblemTestCase"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - description
+        - difficulty
+        - category
+        - tags
+        - testcases
+        - createdAt
+        - updatedAt
+
+    CreateProblemRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+        difficulty:
+          $ref: "#/components/schemas/ProblemDifficulty"
+        category:
+          type: string
+          minLength: 1
+        tags:
+          type: array
+          items:
+            type: string
+        isForBattle:
+          type: boolean
+          default: false
+        editorial:
+          $ref: "#/components/schemas/ProblemEditorialInput"
+        testcases:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            properties:
+              input:
+                type: string
+                minLength: 1
+              output:
+                type: string
+                minLength: 1
+            required: [input, output]
+      required: [title, description, difficulty, category, testcases]
+
+    UpdateProblemRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+        difficulty:
+          $ref: "#/components/schemas/ProblemDifficulty"
+        category:
+          type: string
+          minLength: 1
+        tags:
+          type: array
+          items:
+            type: string
+        isForBattle:
+          type: boolean
+        editorial:
+          $ref: "#/components/schemas/ProblemEditorialInput"
+        testcases:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            properties:
+              input:
+                type: string
+                minLength: 1
+              output:
+                type: string
+                minLength: 1
+            required: [input, output]
+      additionalProperties: false
+
+    BatchProblemLookupRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            minLength: 1
+      required: [ids]
+
+    ProblemSingleResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/Problem"
+      required: [success, message, data]
+
+    ProblemEditorial:
+      type: object
+      properties:
+        videoLink:
+          type: string
+          format: uri
+          description: YouTube video link for the editorial
+        text:
+          type: string
+          description: Markdown editorial content
+      additionalProperties: false
+
+    ProblemEditorialInput:
+      allOf:
+        - $ref: "#/components/schemas/ProblemEditorial"
+      description: Optional editorial block with at least one field.
+
+    ProblemArrayResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Problem"
+      required: [success, message, data]
+
+    ProblemListData:
+      type: object
+      properties:
+        problems:
+          type: array
+          items:
+            $ref: "#/components/schemas/Problem"
+        total:
+          type: integer
+          minimum: 0
+      required: [problems, total]
+
+    ProblemListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/ProblemListData"
+      required: [success, message, data]
+
+    SubmissionStatus:
+      type: string
+      enum: [QUEUED, RUNNING, FINISHED, INTERNAL_ERROR]
+
+    SubmissionVerdict:
+      type: string
+      enum: [AC, WA, TLE, MLE, RE, CE, PE]
+
+    SubmissionTestCaseStatus:
+      type: string
+      enum: [AC, WA, TLE, MLE, RE, CE, PE, BLOCKED]
+
+    SubmissionLanguage:
+      type: string
+      enum: [python, cpp]
+
+    SubmissionJudgeMeta:
+      type: object
+      properties:
+        score:
+          type: number
+          minimum: 0
+        passedTests:
+          type: integer
+          minimum: 0
+        totalTests:
+          type: integer
+          minimum: 0
+        runtimeMs:
+          type: number
+          minimum: 0
+        memoryKb:
+          type: number
+          minimum: 0
+        errorMessage:
+          type: string
+        rawErrorOutput:
+          type: string
+        errorStage:
+          type: string
+          enum: [compile, runtime]
+        judgeVersion:
+          type: string
+        judgedAt:
+          type: string
+          format: date-time
+
+    Submission:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        problemId:
+          type: string
+        code:
+          type: string
+        language:
+          $ref: "#/components/schemas/SubmissionLanguage"
+        status:
+          $ref: "#/components/schemas/SubmissionStatus"
+        verdict:
+          allOf:
+            - $ref: "#/components/schemas/SubmissionVerdict"
+          nullable: true
+        testCaseResults:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/SubmissionTestCaseStatus"
+        judgeMeta:
+          $ref: "#/components/schemas/SubmissionJudgeMeta"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - problemId
+        - code
+        - language
+        - status
+        - verdict
+        - createdAt
+        - updatedAt
+
+    CreateSubmissionRequest:
+      type: object
+      properties:
+        problemId:
+          type: string
+          minLength: 1
+        code:
+          type: string
+          minLength: 1
+        language:
+          $ref: "#/components/schemas/SubmissionLanguage"
+      required: [problemId, code, language]
+
+    UpdateSubmissionStatusRequest:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/SubmissionStatus"
+        verdict:
+          allOf:
+            - $ref: "#/components/schemas/SubmissionVerdict"
+          nullable: true
+        testCaseResults:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/SubmissionTestCaseStatus"
+        judgeMeta:
+          $ref: "#/components/schemas/SubmissionJudgeMeta"
+      anyOf:
+        - required: [status]
+        - required: [verdict]
+        - required: [testCaseResults]
+        - required: [judgeMeta]
+
+    SubmissionSingleResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/Submission"
+      required: [success, message, data]
+
+    SubmissionArrayResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Submission"
+      required: [success, message, data]
+
+    AcceptedProblemsStats:
+      type: object
+      properties:
+        totalSolved:
+          type: integer
+          minimum: 0
+        byDifficulty:
+          type: object
+          properties:
+            easy:
+              type: integer
+              minimum: 0
+            medium:
+              type: integer
+              minimum: 0
+            hard:
+              type: integer
+              minimum: 0
+          required: [easy, medium, hard]
+      required: [totalSolved, byDifficulty]
+
+    AcceptedProblemsData:
+      type: object
+      properties:
+        problemIds:
+          type: array
+          items:
+            type: string
+        problems:
+          type: array
+          items:
+            $ref: "#/components/schemas/Problem"
+        stats:
+          $ref: "#/components/schemas/AcceptedProblemsStats"
+      required: [problemIds, problems, stats]
+
+    AcceptedProblemsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/AcceptedProblemsData"
+      required: [success, message, data]
+
+    UserRole:
+      type: string
+      enum: [USER, ADMIN]
+
+    PrivacySetting:
+      type: string
+      enum: [PUBLIC, FOLLOWERS_ONLY, PRIVATE]
+
+    PublicUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/UserRole"
+        profileVisibility:
+          $ref: "#/components/schemas/PrivacySetting"
+        eloRating:
+          type: integer
+        emailVerified:
+          type: boolean
+        emailVerifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - username
+        - email
+        - role
+        - profileVisibility
+        - emailVerified
+        - createdAt
+
+    UpdateUserEloRequest:
+      type: object
+      properties:
+        delta:
+          type: integer
+      required: [delta]
+
+    UserEloResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            eloRating:
+              type: integer
+          required: [id, eloRating]
+      required: [success, data]
+
+    AuthTokens:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+      required: [accessToken, refreshToken]
+
+    RegisterUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+      required: [username, email, password]
+
+    LoginUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+      required: [email, password]
+
+    RefreshTokenRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          minLength: 1
+      required: [refreshToken]
+
+    ConfirmTokenRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 1
+      required: [token]
+
+    RequestPasswordResetRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required: [email]
+
+    ResetPasswordRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 1
+        newPassword:
+          type: string
+          minLength: 6
+      required: [token, newPassword]
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+        email:
+          type: string
+          format: email
+        profileVisibility:
+          $ref: "#/components/schemas/PrivacySetting"
+      minProperties: 1
+
+    ChangePasswordRequest:
+      type: object
+      properties:
+        currentPassword:
+          type: string
+          minLength: 6
+        newPassword:
+          type: string
+          minLength: 6
+      required: [currentPassword, newPassword]
+
+    RegisterUserData:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/PublicUser"
+        message:
+          type: string
+      required: [user, message]
+
+    RegisterUserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: "#/components/schemas/RegisterUserData"
+      required: [success, data]
+
+    LoginUserData:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/PublicUser"
+        tokens:
+          $ref: "#/components/schemas/AuthTokens"
+      required: [user, tokens]
+
+    LoginUserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: "#/components/schemas/LoginUserData"
+      required: [success, data]
+
+    RefreshTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: "#/components/schemas/AuthTokens"
+      required: [success, data]
+
+    PublicUserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: "#/components/schemas/PublicUser"
+      required: [success, data]
+
+    BasicSuccessMessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        message:
+          type: string
+      required: [success, message]
+
+    BasicErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: false
+        message:
+          type: string
+        error:
+          description: Optional validation/details object from backend.
+      required: [success, message]
+
+    BattleDifficulty:
+      type: string
+      enum: [easy, medium, hard]
+
+    BattleMode:
+      type: string
+      enum: [RANKED, PRIVATE]
+
+    BattleStatus:
+      type: string
+      enum: [WAITING, READY, ACTIVE, FINISHED, CANCELED]
+
+    BattleResult:
+      type: string
+      enum: [WIN, LOSS, DRAW]
+
+    BattleProblem:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        difficulty:
+          $ref: "#/components/schemas/BattleDifficulty"
+      required: [id, title, difficulty]
+
+    BattlePlayer:
+      type: object
+      properties:
+        userId:
+          type: string
+        joinedAt:
+          type: string
+          format: date-time
+        leftAt:
+          type: string
+          format: date-time
+        hasLeft:
+          type: boolean
+        bestRuntimeMs:
+          type: number
+        lastVerdict:
+          type: string
+        lastSubmissionId:
+          type: string
+        lastSubmittedAt:
+          type: string
+          format: date-time
+        result:
+          $ref: "#/components/schemas/BattleResult"
+        eloBefore:
+          type: number
+        eloAfter:
+          type: number
+        eloDelta:
+          type: number
+      required: [userId, joinedAt]
+
+    BattleRoom:
+      type: object
+      properties:
+        id:
+          type: string
+        mode:
+          $ref: "#/components/schemas/BattleMode"
+        status:
+          $ref: "#/components/schemas/BattleStatus"
+        difficulty:
+          $ref: "#/components/schemas/BattleDifficulty"
+        timerSeconds:
+          type: integer
+        inviteCode:
+          type: string
+        ownerId:
+          type: string
+        problem:
+          $ref: "#/components/schemas/BattleProblem"
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/BattlePlayer"
+        startedAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+        winnerUserId:
+          type: string
+      required: [id, mode, status, difficulty, timerSeconds, players]
+
+    BattleRoomResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/BattleRoom"
+      required: [success, data]
+
+    BattleHistoryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/BattleRoom"
+      required: [success, data]
+
+    CreatePrivateBattleRoomRequest:
+      type: object
+      properties:
+        difficulty:
+          $ref: "#/components/schemas/BattleDifficulty"
+        timerMinutes:
+          type: integer
+          minimum: 5
+          maximum: 180
+      required: [difficulty]
+
+    JoinPrivateBattleRoomRequest:
+      type: object
+      properties:
+        inviteCode:
+          type: string
+          minLength: 4
+      required: [inviteCode]

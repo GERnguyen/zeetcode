@@ -37,23 +37,9 @@ export const changePasswordSchema = z
     path: ["newPassword"],
   });
 
-export const followUserSchema = z.object({
-  followingId: z.string().uuid("followingId không hợp lệ"),
-});
-
-export const unfollowUserSchema = z.object({
-  followingId: z.string().uuid("followingId không hợp lệ"),
-});
-
 export const listUsersQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-});
-
-export const listFollowersQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  status: z.enum(["PENDING", "ACCEPTED", "REJECTED"]).optional(),
 });
 
 export const refreshTokenSchema = z.object({
@@ -77,14 +63,19 @@ export const confirmSignupSchema = z.object({
   token: z.string().min(1, "Token không hợp lệ"),
 });
 
+export const userIdParamsSchema = z.object({
+  id: z.string().min(1, "User id không hợp lệ"),
+});
+
+export const updateUserEloSchema = z.object({
+  delta: z.coerce.number().int(),
+});
+
 export type RegisterUserDto = z.infer<typeof registerUserSchema>;
 export type LoginUserDto = z.infer<typeof loginUserSchema>;
 export type UpdateUserDto = z.infer<typeof updateUserSchema>;
 export type ChangePasswordDto = z.infer<typeof changePasswordSchema>;
-export type FollowUserDto = z.infer<typeof followUserSchema>;
-export type UnfollowUserDto = z.infer<typeof unfollowUserSchema>;
 export type ListUsersQueryDto = z.infer<typeof listUsersQuerySchema>;
-export type ListFollowersQueryDto = z.infer<typeof listFollowersQuerySchema>;
 export type RefreshTokenDto = z.infer<typeof refreshTokenSchema>;
 export type RequestPasswordResetDto = z.infer<
   typeof requestPasswordResetSchema
@@ -94,3 +85,4 @@ export type ConfirmPasswordChangeDto = z.infer<
   typeof confirmPasswordChangeSchema
 >;
 export type ConfirmSignupDto = z.infer<typeof confirmSignupSchema>;
+export type UpdateUserEloDto = z.infer<typeof updateUserEloSchema>;

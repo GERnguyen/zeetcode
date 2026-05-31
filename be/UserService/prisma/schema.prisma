@@ -18,12 +18,6 @@
    PRIVATE
  }
  
- enum FollowStatus {
-   PENDING
-   ACCEPTED
-   REJECTED
- }
- 
  enum UserRole {
    USER
    ADMIN
@@ -42,28 +36,13 @@ enum EmailTokenPurpose {
    password          String
    role              UserRole       @default(USER)
    profileVisibility PrivacySetting @default(PUBLIC)
+   eloRating         Int            @default(300)
   emailVerified     Boolean        @default(false)
   emailVerifiedAt   DateTime?
    createdAt         DateTime       @default(now())
- 
-   following         Followers[]    @relation("UserAsFollower")
-   followers         Followers[]    @relation("UserAsFollowing")
 
   refreshTokens     RefreshToken[]
   emailTokens       EmailToken[]
- }
- 
- model Followers {
-   followerId  String
-   followingId String
-   status      FollowStatus @default(PENDING)
-   
-   createdAt   DateTime @default(now())
- 
-   follower    User     @relation("UserAsFollower", fields: [followerId], references: [id], onDelete: Cascade)
-   following   User     @relation("UserAsFollowing", fields: [followingId], references: [id], onDelete: Cascade)
- 
-   @@id([followerId, followingId])
  }
 
 model RefreshToken {

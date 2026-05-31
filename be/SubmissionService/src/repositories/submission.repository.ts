@@ -1,18 +1,19 @@
 import {
+  ISubmissionEvaluationUpdate,
   ISubmission,
-  ISubmissionData,
   Submission,
-  SubmissionStatus,
+  SubmissionVerdict,
 } from "../models/submission.model";
 
 export interface ISubmissionRepository {
   create(submissionData: Partial<ISubmission>): Promise<ISubmission>;
   findById(id: string): Promise<ISubmission | null>;
   findByProblemId(problemId: string): Promise<ISubmission[]>;
-  updateStatus(
+  findByUserAndProblem(userId: string, problemId: string): Promise<ISubmission[]>;
+  findAcceptedProblemIdsByUserId(userId: string): Promise<string[]>;
+  updateEvaluation(
     id: string,
-    status: SubmissionStatus,
-    submissionData: ISubmissionData,
+    payload: ISubmissionEvaluationUpdate,
   ): Promise<ISubmission | null>;
   deleteById(id: string): Promise<boolean>;
 }
@@ -31,16 +32,38 @@ export class SubmissionRepository implements ISubmissionRepository {
     return await Submission.find({ problemId });
   }
 
-  async updateStatus(
+  async findByUserAndProblem(
+    userId: string,
+    problemId: string,
+  ): Promise<ISubmission[]> {
+    return await Submission.find({ userId, problemId })
+      .sort({ createdAt: -1 })
+      .limit(100);
+  }
+
+  async findAcceptedProblemIdsByUserId(userId: string): Promise<string[]> {
+    return await Submission.distinct("problemId", {
+      userId,
+      verdict: SubmissionVerdict.AC,
+      isPracticeRun: { $ne: true },
+    });
+  }
+
+  async updateEvaluation(
     id: string,
-    status: SubmissionStatus,
-    submissionData: ISubmissionData,
+    payload: ISubmissionEvaluationUpdate,
   ): Promise<ISubmission | null> {
-    return await Submission.findByIdAndUpdate(
-      id,
-      { status, submissionData },
-      { new: true },
-    );
+    const updatePayload: ISubmissionEvaluationUpdate = {};
+
+    if (payload.status !== undefined) updatePayload.status = payload.status;
+    if (payload.verdict !== undefined) updatePayload.verdict = payload.verdict;
+    if (payload.testCaseResults !== undefined) {
+      updatePayload.testCaseResults = payload.testCaseResults;
+    }
+    if (payload.judgeMeta !== undefined)
+      updatePayload.judgeMeta = payload.judgeMeta;
+
+    return await Submission.findByIdAndUpdate(id, updatePayload, { new: true });
   }
 
   async deleteById(id: string): Promise<boolean> {

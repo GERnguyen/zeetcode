@@ -1,5 +1,6 @@
 // This file contains all the basic configuration logic for the app server to work
 import dotenv from "dotenv";
+import path from "path";
 import type { StringValue } from "ms";
 
 type ServerConfig = {
@@ -16,10 +17,11 @@ type ServerConfig = {
   FRONTEND_URL: string;
   DATABASE_URL: string;
   DIRECT_URL: string;
+  INTERNAL_SERVICE_TOKEN: string;
 };
 
 function loadEnv() {
-  dotenv.config();
+  dotenv.config({ path: path.resolve(__dirname, "../../.env") });
   console.log(`Environment variables loaded`);
 }
 
@@ -46,4 +48,5 @@ export const serverConfig: ServerConfig = {
   DATABASE_URL:
     process.env.DATABASE_URL ||
     "postgresql://user:password@localhost:5432/mydb",
+  INTERNAL_SERVICE_TOKEN: process.env.INTERNAL_SERVICE_TOKEN || "",
 };

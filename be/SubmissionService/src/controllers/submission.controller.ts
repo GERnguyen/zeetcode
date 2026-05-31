@@ -2,6 +2,13 @@ import { NextFunction, Request, Response } from "express";
 import logger from "../config/logger.config";
 import { SubmissionService } from "../services/submission.service";
 
+type AuthenticatedRequest = Request & {
+  user?: {
+    id: string;
+    role?: string;
+  };
+};
+
 export class SubmissionController {
   private submissionService: SubmissionService;
 
@@ -14,12 +21,26 @@ export class SubmissionController {
     res: Response,
     next: NextFunction,
   ) => {
-    logger.info("Creating new submission", { body: req.body });
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user?.id;
 
-    const submission = await this.submissionService.createSubmission(req.body);
+    logger.info("Creating new submission", {
+      problemId: req.body.problemId,
+      language: req.body.language,
+      userId,
+    });
+
+    const submission = await this.submissionService.createSubmission({
+      ...req.body,
+      userId,
+    });
 
     if (!submission) {
-      logger.error("Failed to create submission", { body: req.body });
+      logger.error("Failed to create submission", {
+        problemId: req.body.problemId,
+        language: req.body.language,
+        userId,
+      });
       return res.status(400).json({
         success: false,
         message: "Failed to create submission",
@@ -55,6 +76,26 @@ export class SubmissionController {
     });
   };
 
+  runSampleTests = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user?.id;
+
+    const submission = await this.submissionService.runSampleTests({
+      ...req.body,
+      userId,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Sample run created successfully",
+      data: submission,
+    });
+  };
+
   getSubmissionsByProblemId = async (
     req: Request,
     res: Response,
@@ -75,6 +116,49 @@ export class SubmissionController {
       success: true,
       message: "Submissions fetched successfully",
       data: submissions,
+    });
+  };
+
+  getMySubmissionsByProblemId = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user?.id || "";
+    const { problemId } = req.params;
+
+    const submissions =
+      await this.submissionService.getMySubmissionsByProblemId(
+        userId,
+        problemId,
+      );
+
+    res.status(200).json({
+      success: true,
+      message: "Submissions fetched successfully",
+      data: submissions,
+    });
+  };
+
+  getMyAcceptedProblems = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user?.id;
+
+    logger.info("Fetching accepted problems for current user", { userId });
+
+    const data = await this.submissionService.getAcceptedProblemsByUserId(
+      userId || "",
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Accepted problems fetched successfully",
+      data,
     });
   };
 
@@ -102,19 +186,22 @@ export class SubmissionController {
     next: NextFunction,
   ) => {
     const { id } = req.params;
-    const { status, submissionData } = req.body;
+    const { status, verdict, testCaseResults, judgeMeta } = req.body;
 
     logger.info("Updating submission status", {
       submissionId: id,
       status,
-      submissionData,
+      verdict,
+      testCaseResults,
+      judgeMeta,
     });
 
-    const submission = await this.submissionService.updateSubmissionStatus(
-      id,
+    const submission = await this.submissionService.updateSubmissionStatus(id, {
       status,
-      submissionData
-    );
+      verdict,
+      testCaseResults,
+      judgeMeta,
+    });
 
     logger.info("Submission status updated successfully", {
       submissionId: id,

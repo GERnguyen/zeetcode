@@ -1,0 +1,41 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy production
+    runs-on: ubuntu-latest
+    if: >
+      vars.ENABLE_DEPLOY == 'true' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.head_branch == 'main'
+        )
+      )
+
+    steps:
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${{ secrets.DEPLOY_PORT || '22' }}" "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy on server
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${{ secrets.DEPLOY_PORT || '22' }}" \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "cd '${{ secrets.DEPLOY_PATH }}' && git fetch origin main && git checkout main && git pull --ff-only origin main && bash ./.github/scripts/deploy-production.sh"

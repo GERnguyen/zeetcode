@@ -1,13 +1,23 @@
 import express from "express";
 import { SubmissionFactory } from "../../factories/submission.factory";
-import { validateRequestBody, validateQueryParams } from "../../validators";
+import {
+  authenticateAccessToken,
+  authenticateServiceToken,
+} from "../../middlewares/auth.middleware";
+import { validateRequestBody, validateRequestParams } from "../../validators";
 import {
   createSubmissionSchema,
+  submissionProblemParamsSchema,
   updateSubmissionStatusSchema,
-  submissionQuerySchema,
 } from "../../validators/submission.validator";
+import { authenticatedUserRateLimit } from "../../middlewares/rate-limit.middleware";
 
 const submissionRouter = express.Router();
+const submissionCreateLimiter = authenticatedUserRateLimit({
+  keyPrefix: "submission-create",
+  maxRequests: 30,
+  windowMs: 60 * 1000,
+});
 
 // Get submission controller instance from factory
 const submissionController = SubmissionFactory.getSubmissionController();
@@ -15,6 +25,8 @@ const submissionController = SubmissionFactory.getSubmissionController();
 // POST /submissions - Create a new submission
 submissionRouter.post(
   "/",
+  authenticateAccessToken,
+  submissionCreateLimiter,
   validateRequestBody(createSubmissionSchema),
   // wrap async controller so the router handler does not return the controller's Response
   (req, res, next) => {
@@ -24,13 +36,37 @@ submissionRouter.post(
   },
 );
 
+submissionRouter.post(
+  "/run-samples",
+  authenticateAccessToken,
+  submissionCreateLimiter,
+  validateRequestBody(createSubmissionSchema),
+  (req, res, next) => {
+    submissionController.runSampleTests(req, res, next).catch(next);
+  },
+);
+
+// GET /submissions/me/accepted-problems - Get all accepted problems for current user
+submissionRouter.get(
+  "/me/accepted-problems",
+  authenticateAccessToken,
+  submissionController.getMyAcceptedProblems,
+);
+
+submissionRouter.get(
+  "/me/problem/:problemId",
+  authenticateAccessToken,
+  validateRequestParams(submissionProblemParamsSchema),
+  submissionController.getMySubmissionsByProblemId,
+);
+
 // GET /submissions/:id - Get submission by ID
 submissionRouter.get("/:id", submissionController.getSubmissionById);
 
 // GET /submissions/problem/:problemId - Get all submissions for a problem
 submissionRouter.get(
   "/problem/:problemId",
-  validateQueryParams(submissionQuerySchema),
+  validateRequestParams(submissionProblemParamsSchema),
   submissionController.getSubmissionsByProblemId,
 );
 
@@ -40,6 +76,7 @@ submissionRouter.delete("/:id", submissionController.deleteSubmissionById);
 // PATCH /submissions/:id/status - Update submission status
 submissionRouter.patch(
   "/:id/status",
+  authenticateServiceToken,
   validateRequestBody(updateSubmissionStatusSchema),
   submissionController.updateSubmissionStatus,
 );

@@ -10,36 +10,96 @@ import {
 import { runCode } from "../utils/containers/codeRunner.util";
 import { LANGUAGE_CONFIG } from "../config/language.config";
 import { updateSubmission } from "../api/submission.api";
+import { serverConfig } from "../config";
 
-function matchTestCasesWithResults(
+type TestCaseResultStatus = "AC" | "WA" | "TLE" | "RE" | "CE" | "BLOCKED";
+
+function normalizeForJudge(output: string): string {
+  return output
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n")
+    .trimEnd();
+}
+
+async function evaluateTestCasesSequentially(
+  code: string,
+  language: EvaluationJob["language"],
   testCases: TestCase[],
-  results: EvaluationResult[],
 ) {
-  const output: Record<string, string> = {};
-  if (results.length !== testCases.length) {
-    console.log("WA");
-    return;
-  }
-  testCases.map((testCase, index) => {
-    let retval = "";
-    if (results[index].status === "time_limit_exceeded") {
-      retval = "TLE";
-    } else if (results[index].status === "failed") {
-      retval = "Error";
-    } else {
-      // match the output with the test case output
-      if (results[index].output === testCase.output) {
-        retval = "AC";
+  const testCaseResults: Record<string, TestCaseResultStatus> = {};
+  const totalTests = testCases.length;
+  let passedTests = 0;
+  let runtimeMs = 0;
+  let verdict: "AC" | "WA" | "TLE" | "RE" | "CE" = "AC";
+  let rawErrorOutput: string | undefined;
+  let errorStage: "compile" | "runtime" | undefined;
+
+  for (let index = 0; index < testCases.length; index += 1) {
+    const testCase = testCases[index];
+
+    const result: EvaluationResult = await runCode({
+      code,
+      language,
+      timeout: LANGUAGE_CONFIG[language].timeout,
+      imageName: LANGUAGE_CONFIG[language].imageName,
+      input: testCase.input,
+    });
+    runtimeMs += result.runtimeMs;
+
+    if (result.status === "success") {
+      const normalizedActual = normalizeForJudge(result.output);
+      const normalizedExpected = normalizeForJudge(testCase.output);
+
+      if (normalizedActual === normalizedExpected) {
+        testCaseResults[testCase._id] = "AC";
+        passedTests += 1;
       } else {
-        retval = "WA";
+        testCaseResults[testCase._id] = "WA";
+        verdict = "WA";
       }
+      continue;
     }
 
-    console.log("retval", retval);
-    output[testCase._id] = retval;
-  });
+    if (result.status === "Time Limit Exceeded") {
+      testCaseResults[testCase._id] = "TLE";
+      verdict = "TLE";
+      for (
+        let blockedIndex = index + 1;
+        blockedIndex < testCases.length;
+        blockedIndex += 1
+      ) {
+        testCaseResults[testCases[blockedIndex]._id] = "BLOCKED";
+      }
+      break;
+    }
 
-  return output;
+    errorStage = result.errorStage ?? "runtime";
+    rawErrorOutput = result.output;
+    verdict = errorStage === "compile" ? "CE" : "RE";
+    testCaseResults[testCase._id] = verdict;
+
+    for (
+      let blockedIndex = index + 1;
+      blockedIndex < testCases.length;
+      blockedIndex += 1
+    ) {
+      testCaseResults[testCases[blockedIndex]._id] = "BLOCKED";
+    }
+    break;
+  }
+
+  return {
+    verdict,
+    testCaseResults,
+    passedTests,
+    totalTests,
+    runtimeMs,
+    rawErrorOutput,
+    errorStage,
+  };
 }
 
 async function setupEvaluationWorker() {
@@ -49,43 +109,58 @@ async function setupEvaluationWorker() {
       logger.info(`Processing job ${job.id}`);
       const data: EvaluationJob = job.data;
 
-      console.log("data", data);
-      console.log("data.problem.testcases", data.problem.testcases);
-
       try {
-        const testCasesRunnerPromise = data.problem.testcases.map(
-          (testcase) => {
-            return runCode({
-              code: data.code,
-              language: data.language,
-              timeout: LANGUAGE_CONFIG[data.language].timeout,
-              imageName: LANGUAGE_CONFIG[data.language].imageName,
-              input: testcase.input,
-            });
-          },
-        );
+        await updateSubmission(data.submissionId, {
+          status: "RUNNING",
+        });
 
-        const testCasesRunnerResults: EvaluationResult[] = await Promise.all(
-          testCasesRunnerPromise,
-        );
-
-        console.log("testCasesRunnerResults", testCasesRunnerResults);
-
-        const output = matchTestCasesWithResults(
+        const output = await evaluateTestCasesSequentially(
+          data.code,
+          data.language,
           data.problem.testcases,
-          testCasesRunnerResults,
         );
 
-        console.log("output", output);
-
-        await updateSubmission(data.submissionId, "completed", output || {});
+        await updateSubmission(data.submissionId, {
+          status: "FINISHED",
+          verdict: output.verdict,
+          testCaseResults: output.testCaseResults,
+          judgeMeta: {
+            score: output.totalTests
+              ? Number(
+                  ((output.passedTests / output.totalTests) * 100).toFixed(2),
+                )
+              : 0,
+            passedTests: output.passedTests,
+            totalTests: output.totalTests,
+            runtimeMs: output.runtimeMs,
+            rawErrorOutput: output.rawErrorOutput,
+            errorStage: output.errorStage,
+            judgeVersion: "v1",
+            judgedAt: new Date().toISOString(),
+          },
+        });
       } catch (error) {
         logger.error(`Evaluation job failed: ${job}`, error);
+        await updateSubmission(data.submissionId, {
+          status: "INTERNAL_ERROR",
+          verdict: "RE",
+          judgeMeta: {
+            errorMessage:
+              error instanceof Error ? error.message : "Evaluation failed",
+            rawErrorOutput:
+              error instanceof Error
+                ? (error.stack ?? error.message)
+                : "Evaluation failed",
+            judgeVersion: "v1",
+            judgedAt: new Date().toISOString(),
+          },
+        });
         return;
       }
     },
     {
       connection: createNewRedisConnection(),
+      concurrency: serverConfig.JUDGE_WORKER_CONCURRENCY,
     },
   );
 

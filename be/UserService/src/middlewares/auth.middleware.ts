@@ -120,3 +120,24 @@ export const requireSelfOrAdmin = (paramKey = "id") => {
     return next(new ForbiddenError("Access denied"));
   };
 };
+
+export const authenticateServiceToken = (
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+) => {
+  const token = req.headers["x-service-token"];
+  if (!token || typeof token !== "string") {
+    return next(new UnauthorizedError("Service token required"));
+  }
+
+  if (!serverConfig.INTERNAL_SERVICE_TOKEN) {
+    return next(new UnauthorizedError("Service token is not configured"));
+  }
+
+  if (token !== serverConfig.INTERNAL_SERVICE_TOKEN) {
+    return next(new UnauthorizedError("Invalid service token"));
+  }
+
+  return next();
+};
