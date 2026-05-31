@@ -28,7 +28,7 @@ jobs:
             command: npm run build
           - name: UserService
             workdir: be/UserService
-            command: npx tsc --noEmit && npm test
+            command: npx prisma generate && npx tsc --noEmit && npm test
           - name: ProblemService
             workdir: be/ProblemService
             command: npx tsc --noEmit
