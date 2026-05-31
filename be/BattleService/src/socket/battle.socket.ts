@@ -545,32 +545,54 @@ export const initBattleSocket = (
       },
     );
 
-    socket.on("room:leave", async (payload: { roomId: string }) => {
-      const result = await battleService.markPlayerLeft(
-        payload.roomId,
-        userData.userId,
-      );
-      const leavingPlayer = result.room.players.find(
-        (player) => player.userId === userData.userId,
-      );
+    socket.on(
+      "room:leave",
+      async (
+        payload: { roomId: string },
+        ack?: (response: { success: boolean; message?: string }) => void,
+      ) => {
+        try {
+          const result = await battleService.markPlayerLeft(
+            payload.roomId,
+            userData.userId,
+          );
+          const leavingPlayer = result.room.players.find(
+            (player) => player.userId === userData.userId,
+          );
 
-      if (result.shouldFinalize) {
-        const finishedRoom = await battleService.finalizeRoom(payload.roomId);
-        stopRoomTimer(payload.roomId);
-        emitToRoom(payload.roomId, "battle:result", finishedRoom);
-      } else {
-        emitToRoom(result.room.id, "battle:room-updated", result.room);
-        emitToRoomExceptUser(payload.roomId, userData.userId, "battle:opponent-left", {
-          roomId: payload.roomId,
-          userId: userData.userId,
-          hadAccepted: typeof leavingPlayer?.bestRuntimeMs === "number",
-          forfeited: typeof leavingPlayer?.bestRuntimeMs !== "number",
-        });
-      }
+          if (result.shouldFinalize) {
+            const finishedRoom = await battleService.finalizeRoom(payload.roomId);
+            stopRoomTimer(payload.roomId);
+            emitToRoom(payload.roomId, "battle:result", finishedRoom);
+          } else {
+            emitToRoom(result.room.id, "battle:room-updated", result.room);
+            emitToRoomExceptUser(
+              payload.roomId,
+              userData.userId,
+              "battle:opponent-left",
+              {
+                roomId: payload.roomId,
+                userId: userData.userId,
+                hadAccepted: typeof leavingPlayer?.bestRuntimeMs === "number",
+                forfeited: typeof leavingPlayer?.bestRuntimeMs !== "number",
+              },
+            );
+          }
 
-      socket.leave(payload.roomId);
-      userCurrentRoom.delete(userData.userId);
-    });
+          socket.leave(payload.roomId);
+          userCurrentRoom.delete(userData.userId);
+          ack?.({ success: true });
+        } catch (error: any) {
+          ack?.({
+            success: false,
+            message: error.message || "Failed to leave battle room",
+          });
+          socket.emit("battle:error", {
+            message: error.message || "Failed to leave battle room",
+          });
+        }
+      },
+    );
 
     socket.on("disconnect", async () => {
       unregisterUserSocket(userData.userId, socket.id);

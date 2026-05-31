@@ -171,10 +171,6 @@ export function BattleRoomPage() {
   const consoleBusy = consoleAction === "run" ? runBusy : consoleAction === "submit" ? submitPending : false;
   const hasAccepted =
     typeof me?.bestRuntimeMs === "number" || submitResult?.verdict === "AC";
-  const opponentHasLeft = Boolean(
-    room?.players.some((player) => player.userId !== user?.id && player.hasLeft),
-  );
-
   useEffect(() => {
     if (!roomId || !accessToken) return;
 
@@ -269,11 +265,19 @@ export function BattleRoomPage() {
   const confirmLeaveBattle = () => {
     setLeaveConfirmOpen(false);
     if (room?.id) {
-      socketRef.current?.emit("room:leave", { roomId: room.id });
+      const fallback = window.setTimeout(() => {
+        navigate("/battle", { replace: true });
+      }, 900);
+
+      socketRef.current
+        ?.timeout(800)
+        .emit("room:leave", { roomId: room.id }, () => {
+          window.clearTimeout(fallback);
+          navigate("/battle", { replace: true });
+        });
+      return;
     }
-    if (!opponentHasLeft && room?.status !== "FINISHED") {
-      navigate("/battle");
-    }
+    navigate("/battle", { replace: true });
   };
 
   const beginResize = (startEvent: ReactPointerEvent<HTMLButtonElement>) => {
