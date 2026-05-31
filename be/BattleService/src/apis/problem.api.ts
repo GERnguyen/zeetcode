@@ -28,6 +28,11 @@ export async function getProblemsByDifficulty(
   try {
     const response: AxiosResponse<ProblemListResponse> = await axios.get(
       `${serverConfig.PROBLEM_SERVICE_URL}/problems/difficulty/${difficulty}`,
+      {
+        headers: {
+          "x-service-token": serverConfig.PROBLEM_SERVICE_TOKEN,
+        },
+      },
     );
 
     if (response.data.success) {

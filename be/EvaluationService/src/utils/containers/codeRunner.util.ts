@@ -1,4 +1,5 @@
 import { InternalServerError } from "../errors/app.error";
+import { serverConfig } from "../../config";
 import { commands } from "./commands.util";
 import { createNewDockerContainer } from "./createContainer.util";
 
@@ -31,7 +32,7 @@ export async function runCode(options: RunCodeOptions): Promise<RunCodeResult> {
   const container = await createNewDockerContainer({
     imageName: imageName,
     cmdExecutable: commands[language](code, input),
-    memoryLimit: 1024 * 1024 * 1024, // 1GB
+    memoryLimit: serverConfig.JUDGE_MEMORY_MB * 1024 * 1024,
   });
 
   let isTimeLimitExceeded = false;

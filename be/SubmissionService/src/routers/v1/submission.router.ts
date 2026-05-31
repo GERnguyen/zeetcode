@@ -10,8 +10,14 @@ import {
   submissionProblemParamsSchema,
   updateSubmissionStatusSchema,
 } from "../../validators/submission.validator";
+import { authenticatedUserRateLimit } from "../../middlewares/rate-limit.middleware";
 
 const submissionRouter = express.Router();
+const submissionCreateLimiter = authenticatedUserRateLimit({
+  keyPrefix: "submission-create",
+  maxRequests: 30,
+  windowMs: 60 * 1000,
+});
 
 // Get submission controller instance from factory
 const submissionController = SubmissionFactory.getSubmissionController();
@@ -20,6 +26,7 @@ const submissionController = SubmissionFactory.getSubmissionController();
 submissionRouter.post(
   "/",
   authenticateAccessToken,
+  submissionCreateLimiter,
   validateRequestBody(createSubmissionSchema),
   // wrap async controller so the router handler does not return the controller's Response
   (req, res, next) => {
@@ -32,6 +39,7 @@ submissionRouter.post(
 submissionRouter.post(
   "/run-samples",
   authenticateAccessToken,
+  submissionCreateLimiter,
   validateRequestBody(createSubmissionSchema),
   (req, res, next) => {
     submissionController.runSampleTests(req, res, next).catch(next);

@@ -23,6 +23,49 @@ let io: Server | null = null;
 const userSockets = new Map<string, Set<string>>();
 const userCurrentRoom = new Map<string, string>();
 const roomTimers = new Map<string, NodeJS.Timeout>();
+const socketRateLimits = new Map<string, { count: number; resetAt: number }>();
+
+const resolveAllowedOrigins = () =>
+  serverConfig.FRONTEND_ORIGIN.split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+const isSocketRateLimited = (
+  userId: string,
+  eventName: string,
+  maxRequests: number,
+  windowMs: number,
+) => {
+  const key = `${userId}:${eventName}`;
+  const now = Date.now();
+  const current = socketRateLimits.get(key);
+
+  if (!current || current.resetAt <= now) {
+    socketRateLimits.set(key, { count: 1, resetAt: now + windowMs });
+    return false;
+  }
+
+  current.count += 1;
+  socketRateLimits.set(key, current);
+  return current.count > maxRequests;
+};
+
+const guardSocketRateLimit = (
+  socket: Socket,
+  userId: string,
+  eventName: string,
+  maxRequests: number,
+  windowMs: number,
+) => {
+  if (!isSocketRateLimited(userId, eventName, maxRequests, windowMs)) {
+    return false;
+  }
+
+  socket.emit("battle:error", {
+    message: "Too many requests. Please slow down.",
+  });
+  return true;
+};
 
 const registerUserSocket = (userId: string, socketId: string) => {
   const existing = userSockets.get(userId) || new Set<string>();
@@ -194,7 +237,10 @@ export const initBattleSocket = (
   battleService: BattleService,
 ) => {
   io = new Server(httpServer, {
-    cors: { origin: "*" },
+    cors: {
+      origin: resolveAllowedOrigins(),
+      methods: ["GET", "POST"],
+    },
   });
 
   io.use((socket, next) => {
@@ -240,6 +286,18 @@ export const initBattleSocket = (
     registerUserSocket(userData.userId, socket.id);
 
     socket.on("ranked:enqueue", async () => {
+      if (
+        guardSocketRateLimit(
+          socket,
+          userData.userId,
+          "ranked:enqueue",
+          10,
+          60_000,
+        )
+      ) {
+        return;
+      }
+
       try {
         const profile = await battleService.enqueueRanked(userData.userId);
         socket.emit("battle:ranked-queued", {
@@ -254,6 +312,18 @@ export const initBattleSocket = (
     });
 
     socket.on("ranked:dequeue", async () => {
+      if (
+        guardSocketRateLimit(
+          socket,
+          userData.userId,
+          "ranked:dequeue",
+          20,
+          60_000,
+        )
+      ) {
+        return;
+      }
+
       try {
         await battleService.dequeueRanked(userData.userId);
         socket.emit("battle:ranked-dequeued", { userId: userData.userId });
@@ -267,6 +337,18 @@ export const initBattleSocket = (
     socket.on(
       "private:create",
       async (payload: { difficulty: string; timerMinutes?: number }) => {
+        if (
+          guardSocketRateLimit(
+            socket,
+            userData.userId,
+            "private:create",
+            8,
+            60_000,
+          )
+        ) {
+          return;
+        }
+
         try {
           const room = await battleService.createPrivateRoom(userData.userId, {
             difficulty: payload.difficulty as BattleDifficulty,
@@ -285,6 +367,18 @@ export const initBattleSocket = (
     socket.on(
       "private:join",
       async (payload: { roomId: string }) => {
+        if (
+          guardSocketRateLimit(
+            socket,
+            userData.userId,
+            "private:join",
+            15,
+            60_000,
+          )
+        ) {
+          return;
+        }
+
         try {
           const room = await battleService.joinPrivateRoom(
             userData.userId,
@@ -388,6 +482,18 @@ export const initBattleSocket = (
     socket.on(
       "room:submit",
       async (payload: { roomId: string; code: string; language: string }) => {
+        if (
+          guardSocketRateLimit(
+            socket,
+            userData.userId,
+            "room:submit",
+            30,
+            60_000,
+          )
+        ) {
+          return;
+        }
+
         const room = await battleService.getRoomById(payload.roomId);
         if (room.status !== "ACTIVE") {
           socket.emit("battle:error", { message: "Room is not active" });

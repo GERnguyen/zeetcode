@@ -1,6 +1,13 @@
 node_modules/
 **/node_modules/
 
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
 be/roadmap.html
 be/UserService/REPORT.html
 be/days-roadmap/*.html

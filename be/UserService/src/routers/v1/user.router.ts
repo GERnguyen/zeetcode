@@ -17,8 +17,14 @@ import {
   userIdParamsSchema,
   updateUserSchema,
 } from "../../validators/user.validator";
+import { rateLimit } from "../../middlewares/rate-limit.middleware";
 
 const userRouter = express.Router();
+const passwordChangeLimiter = rateLimit({
+  keyPrefix: "password-change",
+  maxRequests: 5,
+  windowMs: 60 * 60 * 1000,
+});
 
 userRouter.get("/me", authenticateAccessToken, getProfileHandler);
 
@@ -32,6 +38,7 @@ userRouter.patch(
 userRouter.post(
   "/me/change-password",
   authenticateAccessToken,
+  passwordChangeLimiter,
   validateRequestBody(changePasswordSchema),
   changePasswordHandler,
 );

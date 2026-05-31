@@ -10,6 +10,7 @@ import {
 import { runCode } from "../utils/containers/codeRunner.util";
 import { LANGUAGE_CONFIG } from "../config/language.config";
 import { updateSubmission } from "../api/submission.api";
+import { serverConfig } from "../config";
 
 type TestCaseResultStatus = "AC" | "WA" | "TLE" | "RE" | "CE" | "BLOCKED";
 
@@ -108,9 +109,6 @@ async function setupEvaluationWorker() {
       logger.info(`Processing job ${job.id}`);
       const data: EvaluationJob = job.data;
 
-      console.log("data", data);
-      console.log("data.problem.testcases", data.problem.testcases);
-
       try {
         await updateSubmission(data.submissionId, {
           status: "RUNNING",
@@ -121,8 +119,6 @@ async function setupEvaluationWorker() {
           data.language,
           data.problem.testcases,
         );
-
-        console.log("output", output);
 
         await updateSubmission(data.submissionId, {
           status: "FINISHED",
@@ -164,6 +160,7 @@ async function setupEvaluationWorker() {
     },
     {
       connection: createNewRedisConnection(),
+      concurrency: serverConfig.JUDGE_WORKER_CONCURRENCY,
     },
   );
 

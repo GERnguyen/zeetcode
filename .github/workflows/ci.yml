@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+  pull_request:
+    branches:
+      - dev
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Frontend
+            workdir: fe
+            command: npm run build
+          - name: UserService
+            workdir: be/UserService
+            command: npx tsc --noEmit && npm test
+          - name: ProblemService
+            workdir: be/ProblemService
+            command: npx tsc --noEmit
+          - name: SubmissionService
+            workdir: be/SubmissionService
+            command: npx tsc --noEmit
+          - name: EvaluationService
+            workdir: be/EvaluationService
+            command: npx tsc --noEmit
+          - name: BattleService
+            workdir: be/BattleService
+            command: npx tsc --noEmit
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ matrix.workdir }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.workdir }}
+        run: npm ci
+
+      - name: Verify
+        working-directory: ${{ matrix.workdir }}
+        run: ${{ matrix.command }}

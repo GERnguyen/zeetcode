@@ -24,7 +24,11 @@ export class SubmissionController {
     const authReq = req as AuthenticatedRequest;
     const userId = authReq.user?.id;
 
-    logger.info("Creating new submission", { body: req.body });
+    logger.info("Creating new submission", {
+      problemId: req.body.problemId,
+      language: req.body.language,
+      userId,
+    });
 
     const submission = await this.submissionService.createSubmission({
       ...req.body,
@@ -32,7 +36,11 @@ export class SubmissionController {
     });
 
     if (!submission) {
-      logger.error("Failed to create submission", { body: req.body });
+      logger.error("Failed to create submission", {
+        problemId: req.body.problemId,
+        language: req.body.language,
+        userId,
+      });
       return res.status(400).json({
         success: false,
         message: "Failed to create submission",

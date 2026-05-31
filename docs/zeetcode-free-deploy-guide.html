@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zeetcode Free Deploy Guide</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #080d12;
+        --panel: #111820;
+        --panel-2: #151d27;
+        --text: #edf5f2;
+        --muted: #a9b5bf;
+        --line: #2d3742;
+        --green: #47d99a;
+        --cyan: #56d6ff;
+        --yellow: #ffc857;
+        --red: #ff6b75;
+        --code: #0b1117;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 20% 0%, rgba(71, 217, 154, 0.2), transparent 30rem),
+          radial-gradient(circle at 80% 10%, rgba(86, 214, 255, 0.11), transparent 34rem),
+          linear-gradient(180deg, #080d12 0%, #0b1118 100%);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        line-height: 1.65;
+      }
+
+      .page {
+        width: min(1180px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 56px 0 80px;
+      }
+
+      header {
+        padding: 36px;
+        border: 1px solid rgba(71, 217, 154, 0.28);
+        border-radius: 18px;
+        background: rgba(17, 24, 32, 0.82);
+        box-shadow: 0 24px 90px rgba(0, 0, 0, 0.4);
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.12;
+      }
+
+      h1 {
+        max-width: 900px;
+        font-size: clamp(2.4rem, 5vw, 5rem);
+        letter-spacing: 0;
+      }
+
+      h2 {
+        margin-top: 54px;
+        font-size: clamp(1.65rem, 3vw, 2.45rem);
+      }
+
+      h3 {
+        margin-top: 28px;
+        font-size: 1.25rem;
+      }
+
+      p,
+      li {
+        color: var(--muted);
+        font-size: 1.02rem;
+      }
+
+      strong {
+        color: var(--text);
+      }
+
+      a {
+        color: var(--cyan);
+      }
+
+      .lead {
+        max-width: 920px;
+        margin: 22px 0 0;
+        font-size: 1.18rem;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-top: 24px;
+      }
+
+      .card,
+      section {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgba(17, 24, 32, 0.82);
+      }
+
+      .card {
+        padding: 18px;
+      }
+
+      .card b {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--green);
+      }
+
+      section {
+        margin-top: 18px;
+        padding: 28px;
+      }
+
+      .ok {
+        color: var(--green);
+      }
+
+      .warn {
+        color: var(--yellow);
+      }
+
+      .danger {
+        color: var(--red);
+      }
+
+      code {
+        padding: 0.15rem 0.38rem;
+        border: 1px solid rgba(71, 217, 154, 0.22);
+        border-radius: 7px;
+        background: rgba(71, 217, 154, 0.1);
+        color: #dfffee;
+        font-size: 0.95em;
+      }
+
+      pre {
+        overflow: auto;
+        padding: 18px;
+        border: 1px solid #24303a;
+        border-radius: 14px;
+        background: var(--code);
+        color: #dce7ef;
+        font-size: 0.92rem;
+        line-height: 1.55;
+      }
+
+      pre code {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+      }
+
+      table {
+        width: 100%;
+        margin-top: 18px;
+        border-collapse: collapse;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+      }
+
+      th,
+      td {
+        padding: 13px 14px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #17212b;
+        color: var(--text);
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 42px 1fr;
+        gap: 16px;
+        margin-top: 20px;
+      }
+
+      .num {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border-radius: 50%;
+        background: rgba(71, 217, 154, 0.16);
+        color: var(--green);
+        font-weight: 800;
+      }
+
+      .note {
+        padding: 16px 18px;
+        border: 1px solid rgba(255, 200, 87, 0.35);
+        border-radius: 14px;
+        background: rgba(255, 200, 87, 0.08);
+      }
+
+      @media (max-width: 860px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        header,
+        section {
+          padding: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <h1>Zeetcode Deploy Guide: Free-Tier Demo</h1>
+        <p class="lead">
+          Tài liệu này hướng dẫn deploy Zeetcode để có link demo đưa vào CV. Giả định hiện tại:
+          bạn đã có MongoDB online, đã có Supabase Postgres online, và muốn chạy backend/judge
+          miễn phí hoặc gần miễn phí nhất có thể.
+        </p>
+        <div class="grid">
+          <div class="card">
+            <b>Frontend</b>
+            Deploy bằng Vercel/Netlify/Cloudflare Pages hoặc serve static trên VM.
+          </div>
+          <div class="card">
+            <b>Backend</b>
+            Chạy 5 Node services trên một VM có Docker, Redis và PM2.
+          </div>
+          <div class="card">
+            <b>Judge</b>
+            Docker sandbox chạy trên VM. Không nên deploy EvaluationService lên serverless.
+          </div>
+        </div>
+      </header>
+
+      <h2>1. Trạng thái code sau chỉnh sửa</h2>
+      <section>
+        <ul>
+          <li>
+            Docker judge không còn hard-code 1GB. Memory lấy từ
+            <code>JUDGE_MEMORY_MB</code>, mặc định <strong>256MB</strong>.
+          </li>
+          <li>
+            BullMQ worker đã có <code>JUDGE_WORKER_CONCURRENCY</code>, mặc định
+            <strong>1</strong>. Với free tier, giữ concurrency 1 để tránh nhiều container chạy
+            cùng lúc làm sập máy.
+          </li>
+          <li>
+            <code>.gitignore</code> đã ignore <code>.env</code> thật ở mọi service, nhưng vẫn cho
+            commit <code>.env.example</code>.
+          </li>
+          <li>
+            Các service Mongo đã có retry boot, heartbeat, pool size nhỏ, và log reconnect rõ hơn.
+          </li>
+        </ul>
+      </section>
+
+      <h2>2. Nên deploy theo mô hình nào?</h2>
+      <section>
+        <p>
+          Vì Zeetcode có Docker judge, lựa chọn free hợp lý nhất là một VM luôn chạy được Docker.
+          Với yêu cầu miễn phí, hướng thực tế nhất là <strong>Oracle Cloud Always Free VM</strong>.
+          Oracle docs liệt kê Always Free resources cho Compute, trong đó Ampere A1 là lựa chọn đáng
+          cân nhắc cho app nhiều service.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Thành phần</th>
+              <th>Khuyến nghị free-tier</th>
+              <th>Lý do</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Frontend</td>
+              <td>Vercel hoặc serve bằng Nginx trên VM</td>
+              <td>Frontend chỉ là static build, không tốn tài nguyên nhiều.</td>
+            </tr>
+            <tr>
+              <td>UserService</td>
+              <td>Oracle VM + Supabase Postgres</td>
+              <td>Service Node chạy ổn trên VM; DB đã managed.</td>
+            </tr>
+            <tr>
+              <td>Problem/Submission/Battle</td>
+              <td>Oracle VM + MongoDB Atlas</td>
+              <td>App giữ connection tới Mongo online; pool nhỏ để không quá quota.</td>
+            </tr>
+            <tr>
+              <td>Redis</td>
+              <td>Self-host Redis trên VM</td>
+              <td>BullMQ và matchmaking dùng Redis liên tục; self-host đơn giản và ổn hơn free serverless Redis.</td>
+            </tr>
+            <tr>
+              <td>EvaluationService</td>
+              <td>Oracle VM có Docker daemon</td>
+              <td>Judge cần tạo container runtime; serverless/PaaS thường không cho quyền này.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="note">
+          Nếu bạn chưa có domain, cách miễn phí nhất là serve cả frontend và backend qua
+          <code>http://PUBLIC_IP</code>. Link CV nhìn không đẹp bằng domain HTTPS, nhưng demo vẫn chạy.
+          Nếu dùng Vercel HTTPS cho frontend, backend cũng nên có HTTPS để tránh mixed content.
+        </p>
+      </section>
+
+      <h2>3. Tạo lại toàn bộ secrets trước deploy</h2>
+      <section>
+        <p>
+          Không dùng lại secrets local cũ. Trước khi public, tạo token mới bằng lệnh sau trên máy
+          local hoặc trên server:
+        </p>
+        <pre><code>openssl rand -hex 32</code></pre>
+        <p>Tạo ít nhất các secret sau:</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Tên logic</th>
+              <th>Dùng cho env nào</th>
+              <th>Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>JWT_ACCESS_SECRET</code></td>
+              <td>UserService, ProblemService, SubmissionService, BattleService</td>
+              <td>Cùng một giá trị để các service verify access token giống nhau.</td>
+            </tr>
+            <tr>
+              <td><code>JWT_REFRESH_SECRET</code></td>
+              <td>UserService</td>
+              <td>Chỉ UserService dùng để issue/verify refresh token.</td>
+            </tr>
+            <tr>
+              <td><code>PROBLEM_INTERNAL_TOKEN</code></td>
+              <td>ProblemService INTERNAL + Submission/Battle PROBLEM token</td>
+              <td>Cho phép service nội bộ đọc problem/testcase nhạy cảm.</td>
+            </tr>
+            <tr>
+              <td><code>SUBMISSION_INTERNAL_TOKEN</code></td>
+              <td>SubmissionService INTERNAL + Evaluation SUBMISSION token</td>
+              <td>Cho phép evaluator cập nhật status submission.</td>
+            </tr>
+            <tr>
+              <td><code>USER_INTERNAL_TOKEN</code></td>
+              <td>UserService INTERNAL + Battle USER token</td>
+              <td>Cho phép BattleService đọc user profile/elo nội bộ.</td>
+            </tr>
+            <tr>
+              <td>Email app password</td>
+              <td>UserService <code>MAIL_PASS</code></td>
+              <td>Dùng app password, không dùng mật khẩu chính của email.</td>
+            </tr>
+            <tr>
+              <td>DB URLs</td>
+              <td><code>DB_URL</code>, <code>DATABASE_URL</code>, <code>DIRECT_URL</code></td>
+              <td>Lấy lại từ MongoDB Atlas và Supabase dashboard.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <h2>4. Mapping service token đúng cặp</h2>
+      <section>
+        <p>
+          Đây là phần dễ sai nhất. Hãy nghĩ theo cặp: service A có
+          <code>INTERNAL_SERVICE_TOKEN</code>, service B muốn gọi A thì B phải gửi token đó.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Token gốc</th>
+              <th>Đặt ở service chủ</th>
+              <th>Đặt ở service gọi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>PROBLEM_INTERNAL_TOKEN</code></td>
+              <td><code>ProblemService.INTERNAL_SERVICE_TOKEN</code></td>
+              <td><code>SubmissionService.PROBLEM_SERVICE_TOKEN</code><br /><code>BattleService.PROBLEM_SERVICE_TOKEN</code></td>
+            </tr>
+            <tr>
+              <td><code>SUBMISSION_INTERNAL_TOKEN</code></td>
+              <td><code>SubmissionService.INTERNAL_SERVICE_TOKEN</code></td>
+              <td><code>EvaluationService.SUBMISSION_SERVICE_TOKEN</code></td>
+            </tr>
+            <tr>
+              <td><code>USER_INTERNAL_TOKEN</code></td>
+              <td><code>UserService.INTERNAL_SERVICE_TOKEN</code></td>
+              <td><code>BattleService.USER_SERVICE_TOKEN</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <h2>5. Chuẩn bị VM backend</h2>
+      <section>
+        <div class="step">
+          <div class="num">1</div>
+          <div>
+            <h3>Tạo VM</h3>
+            <p>
+              Tạo Ubuntu VM trên Oracle Cloud Always Free. Nên chọn Ampere A1 nếu tenancy còn
+              capacity. Nếu chỉ lấy được VM 1GB RAM thì app vẫn có thể chạy demo, nhưng Docker judge
+              sẽ rất chật; lúc đó giữ <code>JUDGE_MEMORY_MB=256</code> và concurrency 1.
+            </p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <div>
+            <h3>Mở port</h3>
+            <p>Mở inbound port trong Oracle Security List:</p>
+            <ul>
+              <li><code>22</code> cho SSH.</li>
+              <li><code>80</code> cho HTTP demo.</li>
+              <li><code>443</code> nếu có HTTPS/domain.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <div>
+            <h3>Cài runtime</h3>
+            <pre><code>sudo apt update
+sudo apt install -y git curl nginx redis-server
+
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+
+sudo npm install -g pm2
+
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER</code></pre>
+            <p>Logout rồi SSH lại để quyền Docker group có hiệu lực.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">4</div>
+          <div>
+            <h3>Pull Docker images cho judge</h3>
+            <pre><code>docker pull python:3.8-slim
+docker pull gcc:latest</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <h2>6. Clone repo và tạo env production</h2>
+      <section>
+        <pre><code>cd /home/ubuntu
+git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git zeetcode
+cd zeetcode</code></pre>
+        <p>Ví dụ dưới đây dùng:</p>
+        <ul>
+          <li><code>PUBLIC_URL=http://YOUR_VM_PUBLIC_IP</code></li>
+          <li>UserService port <code>3003</code></li>
+          <li>ProblemService port <code>3000</code></li>
+          <li>SubmissionService port <code>3001</code></li>
+          <li>EvaluationService port <code>3002</code></li>
+          <li>BattleService port <code>3004</code></li>
+        </ul>
+
+        <h3>UserService <code>be/UserService/.env</code></h3>
+        <pre><code>PORT=3003
+NODE_ENV=production
+
+DATABASE_URL="YOUR_SUPABASE_POOLER_OR_DIRECT_URL"
+DIRECT_URL="YOUR_SUPABASE_DIRECT_URL"
+
+JWT_ACCESS_SECRET="GENERATED_JWT_ACCESS_SECRET"
+JWT_REFRESH_SECRET="GENERATED_JWT_REFRESH_SECRET"
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+
+SALT_ROUNDS=10
+EMAIL_TOKEN_EXPIRES_MINUTES=30
+MAIL_USER="your-email@example.com"
+MAIL_PASS="your-email-app-password"
+MAIL_FROM="Zeetcode &lt;your-email@example.com&gt;"
+
+FRONTEND_URL="http://YOUR_VM_PUBLIC_IP"
+FRONTEND_ORIGIN="http://YOUR_VM_PUBLIC_IP"
+INTERNAL_SERVICE_TOKEN="GENERATED_USER_INTERNAL_TOKEN"</code></pre>
+
+        <h3>ProblemService <code>be/ProblemService/.env</code></h3>
+        <pre><code>PORT=3000
+NODE_ENV=production
+DB_URL="YOUR_MONGODB_ATLAS_URL"
+
+JWT_ACCESS_SECRET="GENERATED_JWT_ACCESS_SECRET"
+INTERNAL_SERVICE_TOKEN="GENERATED_PROBLEM_INTERNAL_TOKEN"
+
+FRONTEND_ORIGIN="http://YOUR_VM_PUBLIC_IP"
+DB_CONNECT_RETRIES=10
+DB_CONNECT_RETRY_DELAY_MS=5000
+DB_MIN_POOL_SIZE=1
+DB_MAX_POOL_SIZE=5</code></pre>
+
+        <h3>SubmissionService <code>be/SubmissionService/.env</code></h3>
+        <pre><code>PORT=3001
+NODE_ENV=production
+DB_URL="YOUR_MONGODB_ATLAS_URL"
+
+PROBLEM_SERVICE_URL="http://127.0.0.1:3000/api/v1"
+PROBLEM_SERVICE_TOKEN="GENERATED_PROBLEM_INTERNAL_TOKEN"
+
+JWT_ACCESS_SECRET="GENERATED_JWT_ACCESS_SECRET"
+INTERNAL_SERVICE_TOKEN="GENERATED_SUBMISSION_INTERNAL_TOKEN"
+
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+
+FRONTEND_ORIGIN="http://YOUR_VM_PUBLIC_IP"
+DB_CONNECT_RETRIES=10
+DB_CONNECT_RETRY_DELAY_MS=5000
+DB_MIN_POOL_SIZE=1
+DB_MAX_POOL_SIZE=5</code></pre>
+
+        <h3>EvaluationService <code>be/EvaluationService/.env</code></h3>
+        <pre><code>PORT=3002
+NODE_ENV=production
+
+PROBLEM_SERVICE_URL="http://127.0.0.1:3000/api/v1"
+SUBMISSION_SERVICE_URL="http://127.0.0.1:3001/api/v1"
+SUBMISSION_SERVICE_TOKEN="GENERATED_SUBMISSION_INTERNAL_TOKEN"
+
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+
+JUDGE_MEMORY_MB=256
+JUDGE_WORKER_CONCURRENCY=1</code></pre>
+
+        <h3>BattleService <code>be/BattleService/.env</code></h3>
+        <pre><code>PORT=3004
+NODE_ENV=production
+DB_URL="YOUR_MONGODB_ATLAS_URL"
+
+PROBLEM_SERVICE_URL="http://127.0.0.1:3000/api/v1"
+PROBLEM_SERVICE_TOKEN="GENERATED_PROBLEM_INTERNAL_TOKEN"
+
+SUBMISSION_SERVICE_URL="http://127.0.0.1:3001/api/v1"
+USER_SERVICE_URL="http://127.0.0.1:3003/api/v1"
+USER_SERVICE_TOKEN="GENERATED_USER_INTERNAL_TOKEN"
+
+JWT_ACCESS_SECRET="GENERATED_JWT_ACCESS_SECRET"
+FRONTEND_ORIGIN="http://YOUR_VM_PUBLIC_IP"
+
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+MATCHMAKING_INTERVAL_MS=2000
+
+DB_CONNECT_RETRIES=10
+DB_CONNECT_RETRY_DELAY_MS=5000
+DB_MIN_POOL_SIZE=1
+DB_MAX_POOL_SIZE=5</code></pre>
+      </section>
+
+      <h2>7. Build frontend</h2>
+      <section>
+        <p>Nếu serve frontend trực tiếp bằng VM/Nginx, tạo file <code>fe/.env.production</code>:</p>
+        <pre><code>VITE_USER_API=http://YOUR_VM_PUBLIC_IP/user-api/api/v1
+VITE_PROBLEM_API=http://YOUR_VM_PUBLIC_IP/problem-api/api/v1
+VITE_SUBMISSION_API=http://YOUR_VM_PUBLIC_IP/submission-api/api/v1
+VITE_BATTLE_API=http://YOUR_VM_PUBLIC_IP/battle-api/api/v1
+VITE_BATTLE_SOCKET=http://YOUR_VM_PUBLIC_IP</code></pre>
+        <pre><code>cd fe
+npm ci
+npm run build
+cd ..</code></pre>
+        <p>
+          Nếu deploy frontend bằng Vercel, đặt các biến <code>VITE_*</code> tương tự trong Vercel
+          Project Settings. Vercel docs có phần Environment Variables riêng cho cách cấu hình này.
+        </p>
+      </section>
+
+      <h2>8. Cài dependencies và chạy backend bằng PM2</h2>
+      <section>
+        <pre><code>for service in be/UserService be/ProblemService be/SubmissionService be/EvaluationService be/BattleService; do
+  cd /home/ubuntu/zeetcode/$service
+  npm ci
+  npx tsc --noEmit
+done</code></pre>
+        <pre><code>pm2 start npm --name zeetcode-user-service --cwd /home/ubuntu/zeetcode/be/UserService -- start
+pm2 start npm --name zeetcode-problem-service --cwd /home/ubuntu/zeetcode/be/ProblemService -- start
+pm2 start npm --name zeetcode-submission-service --cwd /home/ubuntu/zeetcode/be/SubmissionService -- start
+pm2 start npm --name zeetcode-evaluation-service --cwd /home/ubuntu/zeetcode/be/EvaluationService -- start
+pm2 start npm --name zeetcode-battle-service --cwd /home/ubuntu/zeetcode/be/BattleService -- start
+
+pm2 save
+pm2 startup</code></pre>
+        <p>Kiểm tra log:</p>
+        <pre><code>pm2 status
+pm2 logs zeetcode-evaluation-service</code></pre>
+      </section>
+
+      <h2>9. Nginx reverse proxy</h2>
+      <section>
+        <p>Tạo file <code>/etc/nginx/sites-available/zeetcode</code>:</p>
+        <pre><code>server {
+  listen 80;
+  server_name _;
+
+  root /home/ubuntu/zeetcode/fe/dist;
+  index index.html;
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+
+  location /user-api/ {
+    proxy_pass http://127.0.0.1:3003/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+  }
+
+  location /problem-api/ {
+    proxy_pass http://127.0.0.1:3000/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+  }
+
+  location /submission-api/ {
+    proxy_pass http://127.0.0.1:3001/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+  }
+
+  location /battle-api/ {
+    proxy_pass http://127.0.0.1:3004/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+  }
+
+  location /socket.io/ {
+    proxy_pass http://127.0.0.1:3004/socket.io/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_read_timeout 75s;
+  }
+}</code></pre>
+        <pre><code>sudo ln -s /etc/nginx/sites-available/zeetcode /etc/nginx/sites-enabled/zeetcode
+sudo nginx -t
+sudo systemctl reload nginx</code></pre>
+      </section>
+
+      <h2>10. Database checklist</h2>
+      <section>
+        <h3>MongoDB Atlas</h3>
+        <ul>
+          <li>Tạo database user riêng cho app, không dùng admin/root.</li>
+          <li>Network Access: thêm public IP của VM. Nếu cần demo nhanh có thể dùng <code>0.0.0.0/0</code>, nhưng production nên giới hạn IP.</li>
+          <li>Dùng cùng cluster nhưng tách database theo service nếu muốn dễ quản lý.</li>
+        </ul>
+        <h3>Supabase</h3>
+        <ul>
+          <li>Lấy connection string từ Dashboard &gt; Connect.</li>
+          <li>Với app server lâu dài, direct connection thường đơn giản. Nếu dùng pooler, đảm bảo Prisma config tương thích.</li>
+          <li>Chạy Prisma migration trước khi public nếu schema chưa có trên Supabase.</li>
+        </ul>
+        <pre><code>cd /home/ubuntu/zeetcode/be/UserService
+npx prisma migrate deploy</code></pre>
+      </section>
+
+      <h2>11. Smoke test sau deploy</h2>
+      <section>
+        <ol>
+          <li>Mở <code>http://YOUR_VM_PUBLIC_IP</code>, trang frontend phải load được.</li>
+          <li>Register tài khoản mới, check email verify.</li>
+          <li>Login, vào Practice, mở problem.</li>
+          <li>Run sample Python, sau đó submit Python.</li>
+          <li>Chuyển sang C++, submit lại để kiểm tra Docker image <code>gcc</code>.</li>
+          <li>Mở 2 browser/user khác nhau, test ranked battle matching.</li>
+          <li>Tạo private room, join bằng room ID, start match.</li>
+          <li>Kiểm tra PM2 logs không có lỗi Mongo disconnect kéo dài.</li>
+        </ol>
+        <pre><code>pm2 logs zeetcode-problem-service
+pm2 logs zeetcode-submission-service
+pm2 logs zeetcode-battle-service
+pm2 logs zeetcode-evaluation-service</code></pre>
+      </section>
+
+      <h2>12. Bật CI/CD deploy tự động</h2>
+      <section>
+        <p>
+          Repo đã có workflow CI/CD. Ban đầu để deploy tắt. Khi server đã chạy ổn, vào GitHub:
+          <code>Settings -&gt; Secrets and variables -&gt; Actions</code>.
+        </p>
+        <h3>Repository variable</h3>
+        <pre><code>ENABLE_DEPLOY=true</code></pre>
+        <h3>Repository secrets</h3>
+        <pre><code>DEPLOY_HOST=YOUR_VM_PUBLIC_IP
+DEPLOY_USER=ubuntu
+DEPLOY_PORT=22
+DEPLOY_PATH=/home/ubuntu/zeetcode
+DEPLOY_SSH_KEY=YOUR_PRIVATE_SSH_KEY_FOR_DEPLOY</code></pre>
+        <p>
+          Sau đó mỗi lần merge vào <code>main</code>, CI chạy trước. Nếu CI pass, workflow Deploy
+          sẽ SSH vào server, pull code mới nhất, typecheck backend, rồi restart PM2 services.
+        </p>
+      </section>
+
+      <h2>13. Khi nào tăng judge memory?</h2>
+      <section>
+        <table>
+          <thead>
+            <tr>
+              <th>Giá trị</th>
+              <th>Khi dùng</th>
+              <th>Tradeoff</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>JUDGE_MEMORY_MB=256</code></td>
+              <td>Demo CV, bài algorithm nhỏ, VM ít RAM.</td>
+              <td>An toàn tài nguyên nhất, nhưng bài C++/Python nặng có thể fail memory.</td>
+            </tr>
+            <tr>
+              <td><code>JUDGE_MEMORY_MB=512</code></td>
+              <td>VM có từ 2GB RAM trở lên.</td>
+              <td>Ít false fail hơn, nhưng mỗi container tốn nhiều RAM hơn.</td>
+            </tr>
+            <tr>
+              <td><code>JUDGE_MEMORY_MB=1024</code></td>
+              <td>Chỉ nên dùng local hoặc server mạnh.</td>
+              <td>Không phù hợp free tier nếu có nhiều submission.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Với free deploy, giữ <code>JUDGE_WORKER_CONCURRENCY=1</code>. Nếu nhiều người submit cùng
+          lúc, queue chậm nhưng server vẫn sống.
+        </p>
+      </section>
+
+      <h2>14. Nguồn chính thức nên đọc</h2>
+      <section>
+        <ul>
+          <li><a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm">Oracle Cloud Always Free Resources</a></li>
+          <li><a href="https://www.mongodb.com/quickstart/free-atlas-cluster">MongoDB Atlas Free Cluster</a></li>
+          <li><a href="https://supabase.com/docs/reference/postgres/connection-strings">Supabase connection strings</a></li>
+          <li><a href="https://vercel.com/docs/environment-variables">Vercel environment variables</a></li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
