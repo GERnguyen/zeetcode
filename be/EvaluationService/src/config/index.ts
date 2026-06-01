@@ -14,6 +14,7 @@ type ServerConfig = {
   JUDGE_CPU_QUOTA: number;
   JUDGE_TIMEOUT_MS: number;
   JUDGE_WORKER_CONCURRENCY: number;
+  JUDGE_RUNNER_MODE: "batch" | "legacy";
 };
 
 function loadEnv() {
@@ -38,4 +39,6 @@ export const serverConfig: ServerConfig = {
   JUDGE_TIMEOUT_MS: Number(process.env.JUDGE_TIMEOUT_MS) || 8000,
   JUDGE_WORKER_CONCURRENCY:
     Number(process.env.JUDGE_WORKER_CONCURRENCY) || 1,
+  JUDGE_RUNNER_MODE:
+    process.env.JUDGE_RUNNER_MODE === "legacy" ? "legacy" : "batch",
 };

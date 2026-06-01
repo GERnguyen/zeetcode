@@ -8,6 +8,7 @@ import {
   TestCase,
 } from "../interfaces/evaluation.interface";
 import { runCode } from "../utils/containers/codeRunner.util";
+import { runSubmissionInSingleContainer } from "../utils/containers/batchCodeRunner.util";
 import { LANGUAGE_CONFIG } from "../config/language.config";
 import { updateSubmission } from "../api/submission.api";
 import { serverConfig } from "../config";
@@ -114,11 +115,18 @@ async function setupEvaluationWorker() {
           status: "RUNNING",
         });
 
-        const output = await evaluateTestCasesSequentially(
-          data.code,
-          data.language,
-          data.problem.testcases,
-        );
+        const output =
+          serverConfig.JUDGE_RUNNER_MODE === "legacy"
+            ? await evaluateTestCasesSequentially(
+                data.code,
+                data.language,
+                data.problem.testcases,
+              )
+            : await runSubmissionInSingleContainer({
+                code: data.code,
+                language: data.language,
+                testCases: data.problem.testcases,
+              });
 
         await updateSubmission(data.submissionId, {
           status: "FINISHED",
