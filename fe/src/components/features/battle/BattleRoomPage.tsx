@@ -336,7 +336,7 @@ export function BattleRoomPage() {
       </Panel>
 
       <section
-        className="workspace-grid grid h-[calc(100dvh-176px)] gap-0 max-xl:h-auto max-xl:grid-cols-1"
+        className="workspace-grid grid h-[calc(100dvh-176px)] gap-0"
         style={{ "--description-width": `${descriptionWidth}px` } as CSSProperties}
       >
         <Panel className="problem-content-panel min-h-0 overflow-auto p-4">

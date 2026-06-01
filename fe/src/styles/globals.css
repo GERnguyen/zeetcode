@@ -2409,17 +2409,20 @@ a:focus-visible {
 }
 
 @media (max-width: 1280px) {
+  .battle-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 920px) {
   .workspace-grid {
     grid-template-columns: 1fr;
     gap: 12px;
+    height: auto !important;
   }
 
   .workspace-resize-handle {
     display: none;
-  }
-
-  .battle-grid {
-    grid-template-columns: 1fr;
   }
 }
 

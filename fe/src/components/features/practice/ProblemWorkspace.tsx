@@ -172,7 +172,7 @@ export function ProblemWorkspace() {
 
   return (
     <section
-      className="workspace-grid grid h-[calc(100dvh-104px)] gap-0 max-xl:h-auto max-xl:grid-cols-1"
+      className="workspace-grid grid h-[calc(100dvh-104px)] gap-0"
       style={
         {
           "--description-width": `${descriptionWidth}px`,
