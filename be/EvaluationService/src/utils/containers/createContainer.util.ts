@@ -1,4 +1,5 @@
 import logger from "../../config/logger.config";
+import { serverConfig } from "../../config";
 import Docker from "dockerode";
 
 export interface CreateContainerOptions {
@@ -18,13 +19,13 @@ export async function createNewDockerContainer(
       HostConfig: {
         Memory: options.memoryLimit,
         PidsLimit: 100,
-        CpuQuota: 50000, // Limit CPU usage to 50% of a single CPU core
+        CpuQuota: serverConfig.JUDGE_CPU_QUOTA,
         CpuPeriod: 100000, // Set the CPU period to 100ms
         SecurityOpt: ["no-new-privileges"], // Prevent privilege escalation
         NetworkMode: "none", // Disable networking for the container
       },
-      OpenStdin: true, // keep stdin open to allow interaction with the container
-      AttachStdin: true,
+      OpenStdin: false,
+      AttachStdin: false,
       AttachStdout: true,
       AttachStderr: true,
       Tty: false,

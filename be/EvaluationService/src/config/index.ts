@@ -11,6 +11,8 @@ type ServerConfig = {
   REDIS_HOST: string;
   REDIS_PORT: number;
   JUDGE_MEMORY_MB: number;
+  JUDGE_CPU_QUOTA: number;
+  JUDGE_TIMEOUT_MS: number;
   JUDGE_WORKER_CONCURRENCY: number;
 };
 
@@ -32,6 +34,8 @@ export const serverConfig: ServerConfig = {
   REDIS_HOST: process.env.REDIS_HOST || "localhost",
   REDIS_PORT: Number(process.env.REDIS_PORT) || 6379,
   JUDGE_MEMORY_MB: Number(process.env.JUDGE_MEMORY_MB) || 256,
+  JUDGE_CPU_QUOTA: Number(process.env.JUDGE_CPU_QUOTA) || 100000,
+  JUDGE_TIMEOUT_MS: Number(process.env.JUDGE_TIMEOUT_MS) || 8000,
   JUDGE_WORKER_CONCURRENCY:
     Number(process.env.JUDGE_WORKER_CONCURRENCY) || 1,
 };
